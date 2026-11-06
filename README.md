@@ -1,0 +1,76 @@
+# rem-ai
+
+Biblioteca de **agentes especializados**, **reglas** y **skills** para [Claude Code](https://code.claude.com/docs), organizada en *packs* por tecnología, lista para instalar en cualquier proyecto.
+
+## Conceptos
+
+| Pieza | Qué es | Dónde se instala | Cuándo se usa |
+|-------|--------|------------------|---------------|
+| **Agente** (subagent) | Especialista con su propio prompt, herramientas y contexto aislado. | `.claude/agents/<nombre>.md` | El agente principal le delega tareas, automáticamente según su `description` o cuando se le pide explícitamente. |
+| **Regla** | Instrucciones que siempre se cumplen. Pueden aplicarse a todo o solo a ciertos ficheros (`paths`). | `.claude/rules/<pack>/<regla>.md` | Se cargan como memoria del proyecto; las que tienen `paths` solo cuando se trabaja con ficheros que coinciden. |
+| **Skill** | Flujo de trabajo paso a paso para un tipo de tarea. | `.claude/skills/<nombre>/SKILL.md` | Bajo demanda: `/<nombre>` o cuando Claude detecta que aplica. |
+
+## Estructura
+
+```
+rem-ai/
+├── packs/
+│   ├── core/              # Válido para cualquier proyecto
+│   │   ├── agents/        # architect, code-reviewer, test-engineer
+│   │   ├── rules/         # flujo con agentes, git, calidad de código
+│   │   └── skills/        # feature-workflow, tdd-cycle
+│   ├── java-spring/       # Java 21 + Spring Boot + hexagonal/DDD
+│   ├── kotlin-compose/    # Kotlin + Jetpack Compose / KMP
+│   └── typescript/        # TypeScript + frontend web (Astro, React…)
+├── templates/             # Plantillas para crear agentes, reglas y skills
+├── scripts/install.sh     # Instalador de packs
+└── CLAUDE.md              # Convenciones para mantener este repositorio
+```
+
+## Packs disponibles
+
+| Pack | Agentes | Reglas | Skills |
+|------|---------|--------|--------|
+| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `git-workflow`, `code-quality` | `feature-workflow`, `tdd-cycle` |
+| `java-spring` | `spring-backend-dev` | `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
+| `kotlin-compose` | `android-compose-dev` | `kotlin`, `jetpack-compose` | — |
+| `typescript` | `frontend-dev` | `typescript`, `web-frontend` | — |
+
+## Instalación
+
+Instala en un proyecto concreto los packs que necesite (`core` es casi siempre recomendable):
+
+```bash
+./scripts/install.sh ~/proyectos/mi-api core java-spring
+```
+
+Instala a nivel de usuario (`~/.claude`), disponible en todos tus proyectos:
+
+```bash
+./scripts/install.sh --global core
+```
+
+Opciones:
+
+- `--link`: crea enlaces simbólicos en lugar de copias, así un `git pull` en este repo actualiza todos los proyectos.
+- `--force`: sobrescribe ficheros existentes.
+- `--list`: muestra los packs disponibles.
+
+## Flujo de trabajo
+
+El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`):
+
+```
+Petición ──► architect ──► agente especialista ──► test-engineer ──► code-reviewer ──► commit
+             (plan)        (spring-backend-dev,     (tests)           (revisión)
+                            android-compose-dev,
+                            frontend-dev…)
+```
+
+Las reglas de cada tecnología se aplican tanto al agente principal como a los subagentes cuando tocan ficheros que coinciden con sus `paths`.
+
+## Crear piezas nuevas
+
+1. Copia la plantilla correspondiente de `templates/`.
+2. Colócala en el pack adecuado (o crea un pack nuevo en `packs/<nombre>/`).
+3. Sigue las convenciones de [`CLAUDE.md`](CLAUDE.md) y actualiza la tabla de packs de este README.
