@@ -17,7 +17,7 @@ rem-ai/
 ├── packs/
 │   ├── core/              # Válido para cualquier proyecto
 │   │   ├── agents/        # architect, code-reviewer, test-engineer
-│   │   ├── rules/         # flujo con agentes, git, calidad de código
+│   │   ├── rules/         # flujo con agentes, idioma, git, calidad de código
 │   │   └── skills/        # feature-workflow, tdd-cycle
 │   ├── java-spring/       # Java 21 + Spring Boot + hexagonal/DDD
 │   ├── kotlin-compose/    # Kotlin + Jetpack Compose / KMP
@@ -31,7 +31,7 @@ rem-ai/
 
 | Pack | Agentes | Reglas | Skills |
 |------|---------|--------|--------|
-| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `git-workflow`, `code-quality` | `feature-workflow`, `tdd-cycle` |
+| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `language`, `git-workflow`, `code-quality` | `feature-workflow`, `tdd-cycle` |
 | `java-spring` | `spring-backend-dev` | `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
 | `kotlin-compose` | `android-compose-dev` | `kotlin`, `jetpack-compose` | — |
 | `typescript` | `frontend-dev` | `typescript`, `web-frontend` | — |
