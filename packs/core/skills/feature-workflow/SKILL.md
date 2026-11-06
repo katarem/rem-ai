@@ -10,7 +10,7 @@ description: Flujo completo para implementar una funcionalidad o cambio no trivi
 - Presenta el plan al usuario de forma resumida. Si hay preguntas abiertas que cambian el diseño, resuélvelas con el usuario antes de seguir.
 
 ## 2. Rama
-- Si estás en la rama principal, crea una rama `feature/<nombre-corto>` (o la que indique el proyecto).
+- Crea una rama nueva desde la rama principal actualizada, según la regla `git-workflow` (`feature/<descripcion-corta>`, `fix/…`).
 
 ## 3. Implementación
 - Delega cada paso del plan en el agente especialista de la tecnología (`spring-backend-dev`, `android-compose-dev`, `frontend-dev`…), o implementa tú si no hay especialista.
@@ -26,9 +26,13 @@ description: Flujo completo para implementar una funcionalidad o cambio no trivi
 - Corrige los hallazgos CRÍTICOS e IMPORTANTES; repite la revisión si los cambios son significativos.
 - Comenta los MENORES al usuario sin bloquear.
 
-## 6. Cierre
-- Resume al usuario: qué se ha hecho, ficheros principales, resultado de tests y revisión, decisiones tomadas y pendientes.
-- Haz commit (Conventional Commits) solo si el usuario lo ha pedido o lo pide ahora.
+## 6. Commit y PR
+- Haz commits atómicos en inglés con Conventional Commits.
+- Sube la rama (`git push -u origin <rama>`).
+- Si el remoto es GitHub, abre la PR hacia la rama principal siguiendo la regla `git-workflow` (título, descripción, plantilla). No hagas merge.
+
+## 7. Cierre
+- Resume al usuario: qué se ha hecho, ficheros principales, resultado de tests y revisión, decisiones tomadas, pendientes y enlace a la PR.
 
 ## Terminado cuando
-- El plan está implementado, los tests pasan, la revisión no tiene hallazgos críticos ni importantes abiertos y el usuario tiene el resumen.
+- El plan está implementado, los tests pasan, la revisión no tiene hallazgos críticos ni importantes abiertos, la PR está abierta (o la rama subida si no es GitHub) y el usuario tiene el resumen con el enlace.

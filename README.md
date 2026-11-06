@@ -61,11 +61,13 @@ Opciones:
 El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`):
 
 ```
-Petición ──► architect ──► agente especialista ──► test-engineer ──► code-reviewer ──► commit
-             (plan)        (spring-backend-dev,     (tests)           (revisión)
-                            android-compose-dev,
-                            frontend-dev…)
+Petición ──► rama ──► architect ──► agente especialista ──► test-engineer ──► code-reviewer ──► commits + PR
+                      (plan)        (spring-backend-dev,     (tests)           (revisión)       (GitHub)
+                                     android-compose-dev,
+                                     frontend-dev…)
 ```
+
+Todo cambio se hace en una rama nueva (`feature/…`, `fix/…`) y, si el repositorio está en GitHub, termina en una PR que revisa e integra una persona (regla `git-workflow`).
 
 Las reglas de cada tecnología se aplican tanto al agente principal como a los subagentes cuando tocan ficheros que coinciden con sus `paths`.
 
