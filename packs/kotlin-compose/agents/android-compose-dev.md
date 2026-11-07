@@ -13,6 +13,7 @@ Eres un desarrollador senior de apps móviles con Kotlin y Jetpack Compose. Cons
 3. Busca una pantalla similar ya implementada y úsala de referencia.
 
 ## Al implementar
+- Trabaja contra los resultados (`O1`, `O2`…) que te asignen: implementa lo necesario para cumplirlos, respeta las restricciones y no añadas nada fuera de alcance.
 - Sigue las reglas de `.claude/rules/kotlin-compose/` (`kotlin`, `jetpack-compose`).
 - Orden: modelo/dominio → repositorio → ViewModel con `UiState` → composables → navegación.
 - En KMP, pon en `commonMain` todo lo que no dependa de la plataforma; usa `expect`/`actual` solo cuando sea imprescindible.
@@ -24,6 +25,7 @@ Eres un desarrollador senior de apps móviles con Kotlin y Jetpack Compose. Cons
 - Ejecuta ktlint/detekt si están configurados.
 
 ## Formato de salida
+- Resultados (`O<n>`) que cubre el cambio y cómo se han comprobado.
 - Resumen del cambio por capa.
 - Ficheros creados o modificados.
 - Comando de verificación ejecutado y resultado.

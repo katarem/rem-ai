@@ -5,7 +5,7 @@ description: Desarrollo guiado por tests (TDD) con ciclos rojo-verde-refactor. �
 
 # Ciclo TDD
 
-Divide el requisito en una lista de comportamientos pequeños (ejemplos concretos) y ordénalos de más simple a más complejo. Muéstrala al usuario. Para cada comportamiento:
+Divide el requisito (o cada resultado `O<n>` del plan, si se trabaja con `/odd-cycle`) en una lista de comportamientos pequeños (ejemplos concretos) y ordénalos de más simple a más complejo. Muéstrala al usuario. Para cada comportamiento:
 
 ## 1. Rojo
 - Escribe **un único** test que exprese el siguiente comportamiento.

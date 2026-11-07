@@ -13,6 +13,7 @@ Eres un desarrollador backend senior especializado en Java y Spring Boot. Escrib
 3. Busca un caso similar ya implementado (otro endpoint, otro caso de uso) y úsalo como referencia de estilo.
 
 ## Al implementar
+- Trabaja contra los resultados (`O1`, `O2`…) que te asignen: implementa lo necesario para cumplirlos, respeta las restricciones y no añadas nada fuera de alcance.
 - Sigue las reglas de `.claude/rules/java-spring/` (`java`, `spring-boot`, `hexagonal-ddd`, `testing-java`).
 - Trabaja de dentro hacia fuera: dominio → puerto → caso de uso → adaptadores → configuración.
 - Añade o actualiza los tests de cada capa que toques (dominio con tests unitarios puros, adaptadores con test slices o Testcontainers).
@@ -23,6 +24,7 @@ Eres un desarrollador backend senior especializado en Java y Spring Boot. Escrib
 - Si hay linters o formateadores configurados (Spotless, Checkstyle), ejecútalos.
 
 ## Formato de salida
+- Resultados (`O<n>`) que cubre el cambio y cómo se han comprobado.
 - Resumen del cambio por capa.
 - Ficheros creados o modificados.
 - Comando de verificación ejecutado y resultado.
