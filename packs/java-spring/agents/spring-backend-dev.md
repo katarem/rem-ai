@@ -14,7 +14,8 @@ Eres un desarrollador backend senior especializado en Java y Spring Boot. Escrib
 
 ## Al implementar
 - Trabaja contra los resultados (`O1`, `O2`…) que te asignen: implementa lo necesario para cumplirlos, respeta las restricciones y no añadas nada fuera de alcance.
-- Sigue las reglas de `.claude/rules/java-spring/` (`java`, `spring-boot`, `hexagonal-ddd`, `testing-java`).
+- Sigue las reglas de `.claude/rules/java-spring/` (`stack`, `java`, `spring-boot`, `hexagonal-ddd`, `testing-java`) y, si están instaladas, las de `postgresql` y `docker`.
+- Usa solo las librerías de la regla `stack` o las que ya tenga el proyecto; si necesitas otra, no la añadas: devuélvelo como punto a decidir con `/tech-decision`.
 - Trabaja de dentro hacia fuera: dominio → puerto → caso de uso → adaptadores → configuración.
 - Añade o actualiza los tests de cada capa que toques (dominio con tests unitarios puros, adaptadores con test slices o Testcontainers).
 - Si cambias el esquema de base de datos, crea la migración (Flyway/Liquibase) en lugar de depender de `ddl-auto`.

@@ -34,9 +34,9 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '21'
-          cache: maven
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
 
       # STACK COMMANDS: lint/format, compile and run the full test suite.
       - name: Verify
-        run: ./mvnw -B -ntp verify
+        run: ./gradlew check

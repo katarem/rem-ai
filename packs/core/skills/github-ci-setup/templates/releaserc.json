@@ -6,14 +6,15 @@
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
     ["@semantic-release/exec", {
-      "prepareCmd": "./mvnw -B -ntp -DskipTests -Drevision=${nextRelease.version} package"
+      "prepareCmd": "./gradlew assemble -PreleaseVersion=${nextRelease.version}",
+      "publishCmd": "docker build -t ghcr.io/OWNER/REPO:${nextRelease.version} -t ghcr.io/OWNER/REPO:latest . && docker push --all-tags ghcr.io/OWNER/REPO"
     }],
     ["@semantic-release/git", {
       "assets": ["CHANGELOG.md"],
       "message": "chore(release): ${nextRelease.version} [skip ci]"
     }],
     ["@semantic-release/github", {
-      "assets": [{ "path": "target/*.jar" }]
+      "assets": [{ "path": "build/libs/*.jar" }]
     }]
   ]
 }
