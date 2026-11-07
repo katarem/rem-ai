@@ -17,8 +17,8 @@ rem-ai/
 ├── packs/
 │   ├── core/              # Válido para cualquier proyecto
 │   │   ├── agents/        # architect, code-reviewer, test-engineer
-│   │   ├── rules/         # flujo con agentes, idioma, git, calidad de código
-│   │   └── skills/        # feature-workflow, tdd-cycle
+│   │   ├── rules/         # flujo con agentes, idioma, git, CI/CD, calidad de código
+│   │   └── skills/        # feature-workflow, tdd-cycle, github-ci-setup
 │   ├── java-spring/       # Java 21 + Spring Boot + hexagonal/DDD
 │   ├── kotlin-compose/    # Kotlin + Jetpack Compose / KMP
 │   └── typescript/        # TypeScript + frontend web (Astro, React…)
@@ -31,7 +31,7 @@ rem-ai/
 
 | Pack | Agentes | Reglas | Skills |
 |------|---------|--------|--------|
-| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `language`, `git-workflow`, `code-quality` | `feature-workflow`, `tdd-cycle` |
+| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `tdd-cycle`, `github-ci-setup` |
 | `java-spring` | `spring-backend-dev` | `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
 | `kotlin-compose` | `android-compose-dev` | `kotlin`, `jetpack-compose` | — |
 | `typescript` | `frontend-dev` | `typescript`, `web-frontend` | — |
@@ -68,6 +68,13 @@ Petición ──► rama ──► architect ──► agente especialista ─�
 ```
 
 Todo cambio se hace en una rama nueva (`feature/…`, `fix/…`) y, si el repositorio está en GitHub, termina en una PR que revisa e integra una persona (regla `git-workflow`).
+
+En GitHub, cada repositorio tiene además su pipeline (regla `ci-cd`, se configura con `/github-ci-setup`):
+
+```
+PR abierta ──► CI: lint + build + tests + título de la PR      (ci.yml)
+Merge a main ──► build ──► versión desde Conventional Commits ──► CHANGELOG.md + tag + GitHub Release   (release.yml)
+```
 
 Las reglas de cada tecnología se aplican tanto al agente principal como a los subagentes cuando tocan ficheros que coinciden con sus `paths`.
 
