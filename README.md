@@ -17,11 +17,13 @@ rem-ai/
 ├── packs/
 │   ├── core/              # Válido para cualquier proyecto
 │   │   ├── agents/        # architect, code-reviewer, test-engineer, outcome-verifier
-│   │   ├── rules/         # flujo con agentes, idioma, git, CI/CD, calidad de código
-│   │   └── skills/        # feature-workflow, odd-cycle, tdd-cycle, github-ci-setup
-│   ├── java-spring/       # Java 21 + Spring Boot + hexagonal/DDD
-│   ├── kotlin-compose/    # Kotlin + Jetpack Compose / KMP
-│   └── typescript/        # TypeScript + frontend web (Astro, React…)
+│   │   ├── rules/         # flujo con agentes, stack, idioma, git, CI/CD, calidad de código
+│   │   └── skills/        # feature-workflow, odd-cycle, tdd-cycle, new-project, tech-decision, github-ci-setup
+│   ├── java-spring/       # Java LTS + Spring Boot + Gradle + hexagonal/DDD
+│   ├── kotlin-compose/    # Kotlin Multiplatform + Compose Multiplatform
+│   ├── typescript/        # TypeScript + React/Vite (SPA) y Astro
+│   ├── postgresql/        # Esquema, migraciones Flyway y consultas
+│   └── docker/            # Imágenes y Docker Compose
 ├── templates/             # Plantillas para crear agentes, reglas y skills
 ├── scripts/install.sh     # Instalador de packs
 └── CLAUDE.md              # Convenciones para mantener este repositorio
@@ -31,17 +33,36 @@ rem-ai/
 
 | Pack | Agentes | Reglas | Skills |
 |------|---------|--------|--------|
-| `core` | `architect`, `code-reviewer`, `test-engineer`, `outcome-verifier` | `agent-workflow`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `odd-cycle`, `tdd-cycle`, `github-ci-setup` |
-| `java-spring` | `spring-backend-dev` | `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
-| `kotlin-compose` | `android-compose-dev` | `kotlin`, `jetpack-compose` | — |
-| `typescript` | `frontend-dev` | `typescript`, `web-frontend` | — |
+| `core` | `architect`, `code-reviewer`, `test-engineer`, `outcome-verifier` | `agent-workflow`, `tech-stack`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `odd-cycle`, `tdd-cycle`, `new-project`, `tech-decision`, `github-ci-setup` |
+| `java-spring` | `spring-backend-dev` | `stack`, `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
+| `kotlin-compose` | `android-compose-dev` | `stack`, `kotlin`, `jetpack-compose` | — |
+| `typescript` | `frontend-dev` | `stack`, `typescript`, `react`, `web-frontend` | — |
+| `postgresql` | — | `postgresql` | — |
+| `docker` | — | `docker` | — |
+
+## Stack tecnológico
+
+Los proyectos nuevos usan un stack aprobado (regla `tech-stack`), para que las buenas prácticas estén decididas de antemano y el trabajo se centre en el producto:
+
+| Necesidad | Tecnología | Packs a instalar |
+|-----------|------------|------------------|
+| Backend / API | Java LTS + Spring Boot, Gradle (Kotlin DSL), hexagonal/DDD | `core java-spring postgresql docker` |
+| Aplicación web | React + Vite (SPA) + TypeScript, cliente generado desde el OpenAPI del backend | `core typescript docker` |
+| Web de contenido / landing | Astro + TypeScript | `core typescript docker` |
+| App móvil | Kotlin Multiplatform + Compose Multiplatform (Android e iOS) | `core kotlin-compose` |
+| Datos e infraestructura | PostgreSQL + Flyway, Docker (imágenes en GHCR), GitHub Actions | — |
+
+- Cada componente desplegable es un repositorio propio, con su CI/CD y su versión; el contrato entre backend y clientes es la especificación OpenAPI.
+- La regla `stack` de cada pack fija las librerías aprobadas y las que no se usan. Se activa al tocar los ficheros de build (`build.gradle.kts`, `libs.versions.toml`, `package.json`…), justo cuando se añaden dependencias.
+- `/new-project` crea un proyecto con este stack ya configurado: generador oficial, calidad, tests, Docker, CI/CD y rem-ai instalado.
+- Salirse del stack exige un ADR aceptado por el usuario (`/tech-decision`, en `docs/adr/`). Si una tecnología nueva se adopta para todos los proyectos, se incorpora aquí.
 
 ## Instalación
 
 Instala en un proyecto concreto los packs que necesite (`core` es casi siempre recomendable):
 
 ```bash
-./scripts/install.sh ~/proyectos/mi-api core java-spring
+./scripts/install.sh ~/proyectos/mi-api core java-spring postgresql docker
 ```
 
 Instala a nivel de usuario (`~/.claude`), disponible en todos tus proyectos:
