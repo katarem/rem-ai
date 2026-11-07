@@ -22,7 +22,7 @@ Resultado: `ci.yml` (en cada PR), `release.yml` (al hacer merge), la configuraci
 - Si el versionado es ambiguo (por ejemplo, la versión en el build no coincide con los tags), pregunta antes de seguir.
 
 ## 3. Crea el workflow de CI
-Copia `templates/ci.yml` a `.github/workflows/ci.yml` y adapta los bloques *STACK SETUP* y *STACK COMMANDS*:
+Copia `templates/ci.yml` a `.github/workflows/ci.yml` y adapta los bloques *STACK SETUP* y *STACK COMMANDS* (las plantillas vienen preparadas para el backend del stack aprobado, Gradle con Java LTS):
 
 | Stack | Se detecta por | Setup | Comandos de CI |
 |-------|----------------|-------|----------------|
@@ -44,6 +44,7 @@ Copia `templates/release.yml` a `.github/workflows/release.yml` (mismo bloque de
 | Android | `versionName` desde `releaseVersion` y `versionCode` derivado (`major*10000 + minor*100 + patch`) | `./gradlew assembleRelease bundleRelease -PreleaseVersion=${nextRelease.version}` | `app/build/outputs/apk/release/*.apk`, `app/build/outputs/bundle/release/*.aab` |
 | Node / TypeScript | `@semantic-release/npm` (incluido en semantic-release) con `"npmPublish": false` salvo que se publique en npm; añade `package.json` y el lockfile a los `assets` de `@semantic-release/git` | `npm run build && cd dist && zip -r ../dist.zip .` | `dist.zip` |
 
+- Si el proyecto tiene `Dockerfile`, la release publica también la imagen en GHCR (regla `docker`): conserva el bloque *DOCKER* y el permiso `packages: write` de `release.yml` y el `publishCmd` de `.releaserc.json`, sustituyendo `OWNER/REPO` por el repositorio en minúsculas. Si no lo tiene, elimina los tres.
 - En Android, la firma va por secretos (keystore en base64 y contraseñas). Si no existen, pide al usuario que los cree; nunca los generes ni los versiones.
 - Si el proyecto ya tiene una versión publicada sin tag (por ejemplo `0.3.2` en el build), crea el tag `v0.3.2` sobre la rama principal antes de la primera release para que la numeración continúe desde ahí. Sin tags, semantic-release empieza en `1.0.0`.
 
