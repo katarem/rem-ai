@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # tags, GitHub Release and CHANGELOG.md commit
+      issues: write         # comments on issues fixed by the release
+      pull-requests: write  # comments on PRs included in the release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0              # full history and tags to compute the next version
+          persist-credentials: false  # semantic-release pushes with RELEASE_TOKEN instead
+
+      # STACK SETUP: same block as in ci.yml.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Build on every merge, even when no new version is released.
+      - name: Build
+        run: ./mvnw -B -ntp verify
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+
+      # Computes the version from Conventional Commits, builds the artifacts with it
+      # (prepareCmd in .releaserc.json), updates CHANGELOG.md, tags and publishes the release.
+      - name: Release
+        env:
+          # Token allowed to push CHANGELOG.md to the protected branch (see SKILL.md).
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: >
+          npx --yes
+          -p semantic-release@24
+          -p @semantic-release/changelog@6
+          -p @semantic-release/git@10
+          -p @semantic-release/exec@6
+          -p conventional-changelog-conventionalcommits@8
+          semantic-release
