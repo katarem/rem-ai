@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Arquitecto de software. Úsalo de forma proactiva antes de implementar cualquier funcionalidad o cambio no trivial, para analizar el código existente y producir un plan de implementación guiado por resultados (ODD): resultados observables y verificables, restricciones y pasos que los persiguen. No escribe código.
+description: Arquitecto de software. Úsalo de forma proactiva antes de implementar cualquier funcionalidad o cambio no trivial, para analizar el código existente y producir un plan de implementación guiado por resultados (ODD) - resultados observables y verificables, restricciones y pasos que los persiguen. No escribe código.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
