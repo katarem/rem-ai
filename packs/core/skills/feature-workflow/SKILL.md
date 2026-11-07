@@ -12,7 +12,7 @@ El flujo sigue Outcome-Driven Development (skill `/odd-cycle`): los resultados a
 - Presenta al usuario los resultados y un resumen del plan. Confirma que, si se cumplen esos resultados, el trabajo está hecho; ajusta la lista y resuelve las preguntas abiertas que cambien el diseño antes de seguir.
 
 ## 2. Rama
-- Crea una rama nueva desde la rama principal actualizada, según la regla `git-workflow` (`feature/<descripcion-corta>`, `fix/…`).
+- Crea una rama nueva desde la rama principal actualizada, según la regla `git-workflow`, con un nombre que diga qué se va a implementar a partir del objetivo del plan: `<tipo>/<que-se-implementa>` (`feat/odd-architecture`, `fix/null-price-on-checkout`).
 
 ## 3. Implementación
 - Delega cada paso del plan en el agente especialista de la tecnología (`spring-backend-dev`, `android-compose-dev`, `frontend-dev`…), o implementa tú si no hay especialista.

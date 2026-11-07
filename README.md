@@ -71,7 +71,7 @@ Petición ──► architect ──────────► rama ──► a
 
 Antes de escribir código se acuerda con el usuario qué debe ser cierto al terminar: una lista corta de resultados observables (`O1`, `O2`…), cada uno con su verificación ejecutable, más las restricciones y lo que queda fuera de alcance. El plan, los tests, la revisión y la PR se refieren a esos resultados, y el cambio solo se da por terminado cuando `outcome-verifier` demuestra cada uno con evidencia (tests, comandos, peticiones reales), no porque el código "parezca correcto". ODD se combina con TDD (`/tdd-cycle`): los resultados dicen *qué* debe cumplirse y TDD, *cómo* llegar en pasos pequeños.
 
-Todo cambio se hace en una rama nueva (`feature/…`, `fix/…`) y, si el repositorio está en GitHub, termina en una PR que revisa e integra una persona (regla `git-workflow`).
+Todo cambio se hace en una rama nueva cuyo nombre dice qué se implementa (`feat/odd-architecture`, `fix/null-price-on-checkout`…) y, si el repositorio está en GitHub, termina en una PR que revisa e integra una persona (regla `git-workflow`).
 
 En GitHub, cada repositorio tiene además su pipeline (regla `ci-cd`, se configura con `/github-ci-setup`):
 
