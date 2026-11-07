@@ -13,8 +13,8 @@
 
 ## Pull requests (GitHub)
 - Si el remoto está en GitHub, todo cambio termina en una **PR** de la rama hacia la rama principal (`gh pr create` o la herramienta de GitHub disponible).
-- Antes de abrir la PR: build, tests y linter en verde, revisión de `code-reviewer` sin hallazgos críticos y rama actualizada con la principal.
-- Título de la PR con el mismo formato que los commits. Descripción en inglés con: qué cambia, por qué, cómo se ha probado e issue relacionada (`Closes #123`).
+- Antes de abrir la PR: build, tests y linter en verde, resultados verificados por `outcome-verifier`, revisión de `code-reviewer` sin hallazgos críticos y rama actualizada con la principal.
+- Título de la PR con el mismo formato que los commits. Descripción en inglés con: qué cambia, por qué, sección "Outcomes" (tabla de resultados con la evidencia de cada uno), cómo se ha probado e issue relacionada (`Closes #123`).
 - Si el repositorio tiene plantilla de PR, úsala.
 - Abre la PR como *draft* si el trabajo no está terminado.
 - No hagas merge de la PR: la aprueba y la integra una persona, salvo que te pidan explícitamente lo contrario.

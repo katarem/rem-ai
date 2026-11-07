@@ -16,9 +16,9 @@ Biblioteca de **agentes especializados**, **reglas** y **skills** para [Claude C
 rem-ai/
 ├── packs/
 │   ├── core/              # Válido para cualquier proyecto
-│   │   ├── agents/        # architect, code-reviewer, test-engineer
+│   │   ├── agents/        # architect, code-reviewer, test-engineer, outcome-verifier
 │   │   ├── rules/         # flujo con agentes, idioma, git, CI/CD, calidad de código
-│   │   └── skills/        # feature-workflow, tdd-cycle, github-ci-setup
+│   │   └── skills/        # feature-workflow, odd-cycle, tdd-cycle, github-ci-setup
 │   ├── java-spring/       # Java 21 + Spring Boot + hexagonal/DDD
 │   ├── kotlin-compose/    # Kotlin + Jetpack Compose / KMP
 │   └── typescript/        # TypeScript + frontend web (Astro, React…)
@@ -31,7 +31,7 @@ rem-ai/
 
 | Pack | Agentes | Reglas | Skills |
 |------|---------|--------|--------|
-| `core` | `architect`, `code-reviewer`, `test-engineer` | `agent-workflow`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `tdd-cycle`, `github-ci-setup` |
+| `core` | `architect`, `code-reviewer`, `test-engineer`, `outcome-verifier` | `agent-workflow`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `odd-cycle`, `tdd-cycle`, `github-ci-setup` |
 | `java-spring` | `spring-backend-dev` | `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
 | `kotlin-compose` | `android-compose-dev` | `kotlin`, `jetpack-compose` | — |
 | `typescript` | `frontend-dev` | `typescript`, `web-frontend` | — |
@@ -58,14 +58,18 @@ Opciones:
 
 ## Flujo de trabajo
 
-El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`):
+El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`), guiado por resultados (**Outcome-Driven Development**, skill `/odd-cycle`):
 
 ```
-Petición ──► rama ──► architect ──► agente especialista ──► test-engineer ──► code-reviewer ──► commits + PR
-                      (plan)        (spring-backend-dev,     (tests)           (revisión)       (GitHub)
-                                     android-compose-dev,
-                                     frontend-dev…)
+Petición ──► architect ──────────► rama ──► agente especialista ──► test-engineer ──► outcome-verifier ──► code-reviewer ──► commits + PR
+             (resultados O1…On          (spring-backend-dev,     (tests por         (evidencia por      (revisión)       (sección
+              + plan, acordados          android-compose-dev,     resultado)         resultado)                           "Outcomes")
+              con el usuario)            frontend-dev…)                                   │
+                                              ▲                                           │
+                                              └──────────── resultado NO CUMPLIDO ────────┘
 ```
+
+Antes de escribir código se acuerda con el usuario qué debe ser cierto al terminar: una lista corta de resultados observables (`O1`, `O2`…), cada uno con su verificación ejecutable, más las restricciones y lo que queda fuera de alcance. El plan, los tests, la revisión y la PR se refieren a esos resultados, y el cambio solo se da por terminado cuando `outcome-verifier` demuestra cada uno con evidencia (tests, comandos, peticiones reales), no porque el código "parezca correcto". ODD se combina con TDD (`/tdd-cycle`): los resultados dicen *qué* debe cumplirse y TDD, *cómo* llegar en pasos pequeños.
 
 Todo cambio se hace en una rama nueva (`feature/…`, `fix/…`) y, si el repositorio está en GitHub, termina en una PR que revisa e integra una persona (regla `git-workflow`).
 
