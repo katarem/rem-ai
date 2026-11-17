@@ -44,7 +44,7 @@ list_packs() {
 check_engram() {
   if ! command -v claude >/dev/null 2>&1; then
     echo "Aviso: no se encuentra el CLI 'claude'; no se puede comprobar el servidor MCP 'engram'." >&2
-  elif ! claude mcp get engram >/dev/null 2>&1; then
+  elif ! (cd "$DEST/.." && claude mcp get engram) >/dev/null 2>&1; then
     echo "Aviso: el servidor MCP 'engram' no está configurado (claude mcp add -s user engram -- engram mcp --tools=agent)." >&2
   else
     return 0
