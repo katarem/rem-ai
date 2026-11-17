@@ -33,16 +33,16 @@ El trabajo se define por lo que debe ser cierto al terminar (resultados), no por
 
 ## 3. Implementar contra los resultados
 - Cada paso del plan indica qué resultados persigue (`→ O1, O3`). Un paso que no persigue ningún resultado ni restricción sobra o revela un resultado no declarado: elimínalo o añade el resultado a la lista con el usuario.
-- Al delegar en un agente especialista, pásale los resultados que cubre su paso, las restricciones y lo que queda fuera de alcance.
-- Si al implementar descubres un resultado nuevo, añádelo a la lista y avisa al usuario en lugar de cubrirlo sobre la marcha.
+- Al delegar en un agente especialista, pásale la referencia al plan (`plan/<slug>` en engram o `<handoff>/plan.md`) y los IDs de los resultados que cubre su paso (regla `agent-handoff`).
+- Si al implementar descubres un resultado nuevo, avisa al usuario en lugar de cubrirlo sobre la marcha y, si lo acepta, pide al `architect` que lo añada al plan.
 
 ## 4. Verificar
-- Delega en `outcome-verifier` con la tabla de resultados y las restricciones.
+- Delega en `outcome-verifier` con la referencia al plan; deja la verificación en `verification/<slug>` (o en `<handoff>/outcome-verifier.md`).
 - Por cada resultado `NO CUMPLIDO`, vuelve al paso 3 con la evidencia concreta. Por cada `NO VERIFICABLE`, haz la verificación ejecutable (un test, un script) o acuerda con el usuario cómo verificarlo.
 - Repite hasta que todos estén `CUMPLIDO`.
 
 ## 5. Registrar la evidencia
-- Incluye la tabla final con la evidencia de cada resultado en el resumen al usuario y en la descripción de la PR (sección "Outcomes").
+- Incluye la tabla final con la evidencia de cada resultado (tomada de `verification/<slug>` o de `<handoff>/outcome-verifier.md`) en el resumen al usuario y en la descripción de la PR (sección "Outcomes").
 
 ## Reglas
 - No empieces a implementar sin resultados acordados.
