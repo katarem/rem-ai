@@ -25,7 +25,10 @@ rem-ai/
 │   ├── postgresql/        # Esquema, migraciones Flyway y consultas
 │   └── docker/            # Imágenes y Docker Compose
 ├── templates/             # Plantillas para crear agentes, reglas y skills
-├── scripts/install.sh     # Instalador de packs
+├── scripts/
+│   ├── rem-ai             # CLI: install, update, uninstall, status, setup, self-uninstall
+│   └── install.sh         # Compatibilidad: equivale a `rem-ai install`
+├── tests/                 # Tests del CLI (`./tests/run.sh`)
 └── CLAUDE.md              # Convenciones para mantener este repositorio
 ```
 
@@ -68,27 +71,78 @@ claude mcp add -s user engram -- engram mcp --tools=agent
 ```
 
 - Los agentes declaran sus herramientas con el prefijo `mcp__engram__` (servidor `engram` de usuario). Si instalas engram como plugin, las herramientas se llaman `mcp__plugin_engram_engram__*`: registra también el servidor de usuario o adapta el `tools` de los agentes.
-- Sin engram todo sigue funcionando: el plan, la verificación y el detalle van a ficheros de handoff en `.git/rem-ai/handoff/<slug>/`. `install.sh` avisa si no lo encuentra, sin fallar.
+- Sin engram todo sigue funcionando: el plan, la verificación y el detalle van a ficheros de handoff en `.git/rem-ai/handoff/<slug>/`. `rem-ai install` avisa si no lo encuentra, sin fallar.
+
+### Poner `rem-ai` en el PATH
+
+Clona este repositorio en un sitio estable (las actualizaciones salen de ese clon) y crea el comando:
+
+```bash
+git clone <url-de-rem-ai> ~/code/rem-ai
+~/code/rem-ai/scripts/rem-ai setup      # crea ~/.local/bin/rem-ai (o --bin-dir <dir>)
+```
 
 ### Instalar packs
 
 Instala en un proyecto concreto los packs que necesite (`core` es casi siempre recomendable):
 
 ```bash
-./scripts/install.sh ~/proyectos/mi-api core java-spring postgresql docker
+rem-ai install ~/proyectos/mi-api core java-spring postgresql docker
 ```
 
 Instala a nivel de usuario (`~/.claude`), disponible en todos tus proyectos:
 
 ```bash
-./scripts/install.sh --global core
+rem-ai install --global core
 ```
 
 Opciones:
 
 - `--link`: crea enlaces simbólicos en lugar de copias, así un `git pull` en este repo actualiza todos los proyectos.
 - `--force`: sobrescribe ficheros existentes.
-- `--list`: muestra los packs disponibles.
+- `rem-ai list`: muestra los packs disponibles.
+
+`./scripts/install.sh` sigue funcionando con los mismos argumentos: es un atajo de `rem-ai install`.
+
+### Manifiesto
+
+Cada instalación registra en `.claude/.rem-ai-manifest` qué ha instalado: repositorio, modo (`copy` o `link`), commit, packs y cada fichero con su hash sha256 (o el destino de cada enlace). Es lo que permite actualizar y desinstalar sin tocar tus ficheros:
+
+- Un fichero que ya tenías y es distinto no se sobrescribe ni pasa a ser de rem-ai (salvo con `--force`).
+- Un fichero instalado que has modificado se conserva al actualizar o desinstalar (salvo con `--force`).
+- No se puede mezclar `copy` y `link` en una misma instalación: desinstala antes de cambiar de modo.
+- Puedes versionar el manifiesto junto con `.claude/`; la ruta `repo` es solo informativa.
+- Las instalaciones se registran en `~/.config/rem-ai/installs` para poder desinstalarlas todas.
+
+### Actualizar
+
+```bash
+rem-ai update ~/proyectos/mi-api      # o --global; sin argumentos, el directorio actual
+```
+
+Descarga la última versión del clon (`git pull --ff-only`) y sincroniza los packs instalados: actualiza los ficheros que no has tocado, instala los nuevos, restaura los que falten y elimina los que ya no existen en el repositorio. Si el clon tiene cambios locales, no tiene upstream o no hay red, avisa y sincroniza desde los ficheros locales. `--no-pull` omite la descarga.
+
+`rem-ai status` muestra los packs, el modo, el commit instalado frente al del repositorio y los ficheros modificados, ausentes o no instalados.
+
+### Desinstalar
+
+```bash
+rem-ai uninstall ~/proyectos/mi-api            # todos los packs
+rem-ai uninstall ~/proyectos/mi-api docker     # solo un pack
+rem-ai uninstall --global
+```
+
+Solo borra lo que figura en el manifiesto y no has modificado; deja tus ficheros y elimina las carpetas que quedan vacías.
+
+Para quitar rem-ai del ordenador:
+
+```bash
+rem-ai self-uninstall          # muestra lo que va a hacer
+rem-ai self-uninstall --yes    # desinstala de todos los proyectos registrados y quita el comando
+rm -rf ~/code/rem-ai           # último paso manual: borrar el clon
+```
+
+Si creaste el comando con `setup --bin-dir <dir>`, pasa también `--bin-dir <dir>` a `self-uninstall`.
 
 ## Flujo de trabajo
 

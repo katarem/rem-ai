@@ -32,6 +32,8 @@ Este repositorio es una biblioteca de agentes, reglas y skills para Claude Code.
 2. Actualiza la tabla "Packs disponibles" del `README.md`.
 3. Comprueba la instalación en un directorio temporal:
    ```bash
-   ./scripts/install.sh "$(mktemp -d)" core <pack>
+   XDG_CONFIG_HOME="$(mktemp -d)" ./scripts/install.sh "$(mktemp -d)" core <pack>
    ```
+   (`XDG_CONFIG_HOME` temporal para no añadir la prueba al registro de instalaciones `~/.config/rem-ai/installs`.)
+   Si cambias `scripts/`, ejecuta también los tests del CLI (`./tests/run.sh`), que deben pasar con el bash 3.2 de macOS y en Linux.
 4. Commits con Conventional Commits, usando el pack como scope: `feat(java-spring): add regla de WebFlux`.
