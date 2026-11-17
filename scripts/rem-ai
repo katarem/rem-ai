@@ -1,0 +1,974 @@
+#!/usr/bin/env bash
+# rem-ai: installs, updates and uninstalls rem-ai packs (agents, rules and skills)
+# in a project or in ~/.claude, keeping a manifest of every file it owns.
+#
+# Compatible with bash 3.2 (macOS) and GNU/BSD userlands: no associative arrays,
+# no mapfile, no readlink -f, no sed -i.
+set -euo pipefail
+
+MANIFEST_NAME=".rem-ai-manifest"
+MANIFEST_FORMAT=1
+
+FORCE=0
+MODE=copy
+GLOBAL=0
+DEST=""
+WORK=""
+M_MODE=""
+M_REPO=""
+M_COMMIT=""
+M_VERSION=""
+COUNT_INSTALLED=0
+COUNT_UPDATED=0
+COUNT_REMOVED=0
+COUNT_KEPT=0
+COUNT_SKIPPED=0
+
+# --- bootstrap ----------------------------------------------------------------
+
+# Resolves the real location of this script, following symlinks such as
+# ~/.local/bin/rem-ai, because BSD readlink has no -f.
+resolve_self() {
+  local src="${BASH_SOURCE[0]}" dir
+  while [[ -L "$src" ]]; do
+    dir="$(cd -P "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" == /* ]] || src="$dir/$src"
+  done
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  SELF="$dir/$(basename "$src")"
+  REPO_ROOT="$(cd -P "$dir/.." && pwd)"
+  PACKS_DIR="$REPO_ROOT/packs"
+}
+
+init_hash() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    HASH_CMD=(sha256sum)
+  elif command -v shasum >/dev/null 2>&1; then
+    HASH_CMD=(shasum -a 256)
+  else
+    die "se necesita 'sha256sum' o 'shasum' para calcular hashes."
+  fi
+}
+
+init_work() {
+  WORK="$(mktemp -d "${TMPDIR:-/tmp}/rem-ai.XXXXXX")"
+  trap cleanup_work EXIT
+}
+
+cleanup_work() {
+  if [[ -n "$WORK" && -d "$WORK" ]]; then
+    rm -rf "$WORK"
+  fi
+}
+
+# --- helpers ------------------------------------------------------------------
+
+die() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+warn() {
+  echo "Aviso: $*" >&2
+}
+
+hash_file() {
+  local out
+  # Hash from stdin: with a file argument both tools prefix the hash with "\" when the
+  # path contains a backslash, which would make the file look modified.
+  out="$("${HASH_CMD[@]}" <"$1")"
+  echo "${out%% *}"
+}
+
+# current_hash <path>: hash of a regular file, or a marker that never matches a hash.
+current_hash() {
+  if [[ -L "$1" ]]; then
+    echo "symlink"
+  elif [[ -f "$1" ]]; then
+    hash_file "$1"
+  else
+    echo "other"
+  fi
+}
+
+path_exists() {
+  [[ -e "$1" || -L "$1" ]]
+}
+
+repo_commit() {
+  git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown
+}
+
+repo_version() {
+  git -C "$REPO_ROOT" describe --tags --always --dirty 2>/dev/null || echo unknown
+}
+
+registry_file() {
+  echo "${XDG_CONFIG_HOME:-$HOME/.config}/rem-ai/installs"
+}
+
+registry_add() {
+  local file
+  file="$(registry_file)"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  grep -qxF "$DEST" "$file" || echo "$DEST" >>"$file"
+}
+
+registry_remove() {
+  local file tmp
+  file="$(registry_file)"
+  [[ -f "$file" ]] || return 0
+  tmp="$file.tmp.$$"
+  # grep -v exits 1 when no line remains, which is a valid (empty) result.
+  grep -vxF "$DEST" "$file" >"$tmp" || true
+  mv "$tmp" "$file"
+}
+
+# resolve_dest <target>: sets DEST from GLOBAL or a project directory.
+resolve_dest() {
+  local target="$1"
+  if [[ $GLOBAL -eq 1 ]]; then
+    DEST="$HOME/.claude"
+    return
+  fi
+  [[ -n "$target" ]] || target="."
+  [[ -d "$target" ]] || die "el directorio no existe: $target"
+  DEST="$(cd -P "$target" && pwd)/.claude"
+}
+
+pack_exists() {
+  [[ -d "$PACKS_DIR/$1" ]]
+}
+
+list_packs() {
+  local pack
+  for pack in "$PACKS_DIR"/*/; do
+    pack="$(basename "$pack")"
+    printf '  %-16s agentes: %-2s reglas: %-2s skills: %s\n' "$pack" \
+      "$(find "$PACKS_DIR/$pack/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')" \
+      "$(find "$PACKS_DIR/$pack/rules" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')" \
+      "$(find "$PACKS_DIR/$pack/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+  done
+}
+
+# check_engram: warns (without failing) when the engram MCP server is not available to core agents.
+check_engram() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "Aviso: no se encuentra el CLI 'claude'; no se puede comprobar el servidor MCP 'engram'." >&2
+  elif ! (cd "$DEST/.." && claude mcp get engram) >/dev/null 2>&1; then
+    echo "Aviso: el servidor MCP 'engram' no está configurado (claude mcp add -s user engram -- engram mcp --tools=agent)." >&2
+  else
+    return 0
+  fi
+  echo "  Los agentes funcionarán sin memoria persistente: el detalle irá a ficheros de handoff (regla agent-handoff)." >&2
+}
+
+# --- manifest -----------------------------------------------------------------
+#
+# <dest>/.rem-ai-manifest is a sorted TSV file without timestamps, so reinstalling
+# the same packs produces a byte-identical manifest:
+#   rem-ai-manifest <format>
+#   repo    <absolute path of the rem-ai clone>   (informative)
+#   mode    copy|link
+#   commit  <git commit of the clone>
+#   version <git describe of the clone>
+#   pack    <pack>                                 (one per installed pack)
+#   file    <pack> <path relative to dest> <sha256>          (copy mode, one per file)
+#   link    <pack> <path relative to dest> <absolute source> (link mode, one per unit)
+#
+# In memory, $WORK/old holds the entries read from disk, $WORK/entries the entries
+# that will be written, and $WORK/packs the installed pack names.
+
+load_manifest() {
+  local file="$DEST/$MANIFEST_NAME" header
+  : >"$WORK/old"
+  : >"$WORK/packs"
+  M_MODE=""
+  M_REPO=""
+  M_COMMIT=""
+  M_VERSION=""
+  [[ -f "$file" ]] || return 1
+  header="$(head -n 1 "$file")"
+  [[ "$header" == "rem-ai-manifest"$'\t'"$MANIFEST_FORMAT" ]] \
+    || die "el manifiesto tiene un formato desconocido: $file"
+  M_MODE="$(awk -F'\t' '$1 == "mode" { print $2 }' "$file")"
+  M_REPO="$(awk -F'\t' '$1 == "repo" { print $2 }' "$file")"
+  M_COMMIT="$(awk -F'\t' '$1 == "commit" { print $2 }' "$file")"
+  M_VERSION="$(awk -F'\t' '$1 == "version" { print $2 }' "$file")"
+  awk -F'\t' '$1 == "pack" { print $2 }' "$file" >"$WORK/packs"
+  awk -F'\t' '$1 == "file" || $1 == "link"' "$file" >"$WORK/old"
+  validate_entries "$file"
+  return 0
+}
+
+# validate_entries <manifest>: the manifest may be versioned or edited by hand, so every
+# path must stay inside DEST before it is ever used to delete something.
+validate_entries() {
+  local bad
+  bad="$(awk -F'\t' '
+    {
+      rel = $3
+      if (NF != 4 || $2 == "" || rel == "" || substr(rel, 1, 1) == "/" || rel ~ /(^|\/)\.\.(\/|$)/) {
+        print "  línea " NR ": " rel
+      }
+    }' "$WORK/old")"
+  [[ -z "$bad" ]] || die "el manifiesto $1 contiene rutas no válidas (vacías, absolutas o con '..'):"$'\n'"$bad"
+}
+
+write_manifest() {
+  local file="$DEST/$MANIFEST_NAME" tmp
+  if [[ ! -s "$WORK/packs" ]]; then
+    rm -f "$file"
+    return
+  fi
+  tmp="$(mktemp "$DEST/$MANIFEST_NAME.XXXXXX")"
+  {
+    printf 'rem-ai-manifest\t%s\n' "$MANIFEST_FORMAT"
+    printf 'repo\t%s\n' "$REPO_ROOT"
+    printf 'mode\t%s\n' "$MODE"
+    printf 'commit\t%s\n' "$(repo_commit)"
+    printf 'version\t%s\n' "$(repo_version)"
+    LC_ALL=C sort -u "$WORK/packs" | awk '{ print "pack\t" $0 }'
+    LC_ALL=C sort -t "$(printf '\t')" -k3,3 "$WORK/entries"
+  } >"$tmp"
+  chmod 644 "$tmp"
+  mv "$tmp" "$file"
+}
+
+# finish_dest: writes the manifest and keeps the registry and empty directories in sync.
+finish_dest() {
+  write_manifest
+  if [[ -s "$WORK/packs" ]]; then
+    registry_add
+    return
+  fi
+  registry_remove
+  if [[ $GLOBAL -eq 0 ]]; then
+    # Only succeeds when rem-ai left the project's .claude empty.
+    rmdir "$DEST" 2>/dev/null || true
+  fi
+}
+
+# check_mode_and_repo: refuses to mix modes and warns when the clone moved.
+check_mode_and_repo() {
+  if [[ "$M_MODE" != "$MODE" ]]; then
+    die "la instalación en $DEST usa el modo '$M_MODE'; desinstala antes con 'rem-ai uninstall' para cambiar de modo."
+  fi
+  if [[ -n "$M_REPO" && "$M_REPO" != "$REPO_ROOT" ]]; then
+    if [[ "$MODE" == link && $FORCE -eq 0 ]]; then
+      die "los enlaces apuntan a otro repositorio ($M_REPO); usa --force para reenlazar a $REPO_ROOT."
+    fi
+    warn "la instalación se hizo desde $M_REPO; se usará $REPO_ROOT."
+  fi
+}
+
+# old_value <pack> <rel>: recorded hash or link source of a managed entry (empty if unmanaged).
+old_value() {
+  awk -F'\t' -v p="$1" -v r="$2" '$2 == p && $3 == r { print $4; exit }' "$WORK/old"
+}
+
+has_managed_prefix() {
+  awk -F'\t' -v p="$1" -v prefix="$2" \
+    '$2 == p && index($3, prefix) == 1 { found = 1 } END { exit !found }' "$WORK/old"
+}
+
+record() {
+  printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >>"$WORK/new_pack"
+}
+
+add_pack() {
+  grep -qxF "$1" "$WORK/packs" || echo "$1" >>"$WORK/packs"
+}
+
+remove_pack() {
+  local tmp="$WORK/packs.tmp"
+  # grep -v exits 1 when no pack remains, which is a valid (empty) result.
+  grep -vxF "$1" "$WORK/packs" >"$tmp" || true
+  mv "$tmp" "$WORK/packs"
+}
+
+# merge_pack <pack>: replaces the pack's entries with those recorded in $WORK/new_pack.
+merge_pack() {
+  {
+    awk -F'\t' -v p="$1" '$2 != p' "$WORK/entries"
+    cat "$WORK/new_pack"
+  } >"$WORK/entries.tmp"
+  mv "$WORK/entries.tmp" "$WORK/entries"
+}
+
+# --- pack contents ------------------------------------------------------------
+
+# validate_name <path>: tabs would corrupt the TSV manifest. Newlines cannot be detected
+# here because the line-based find loops have already split such names.
+validate_name() {
+  case "$1" in
+    *$'\t'*) die "ruta no soportada (contiene tabuladores): $1" ;;
+  esac
+}
+
+# list_units <pack>: writes "<rel>\t<source>" for every agent, rule and skill directory
+# of the pack to $WORK/units, applying the same layout as the original installer:
+#   agents/*.md -> agents/   rules/**/*.md -> rules/<pack>/   skills/<name>/ -> skills/<name>/
+list_units() {
+  local pack="$1" pack_dir="$PACKS_DIR/$1" path
+  : >"$WORK/units"
+  if [[ -d "$pack_dir/agents" ]]; then
+    while IFS= read -r path; do
+      validate_name "$path"
+      printf 'agents/%s\t%s\n' "$(basename "$path")" "$path" >>"$WORK/units"
+    done < <(find "$pack_dir/agents" -maxdepth 1 -type f -name '*.md' | LC_ALL=C sort)
+  fi
+  if [[ -d "$pack_dir/rules" ]]; then
+    while IFS= read -r path; do
+      validate_name "$path"
+      printf 'rules/%s/%s\t%s\n' "$pack" "${path#"$pack_dir/rules/"}" "$path" >>"$WORK/units"
+    done < <(find "$pack_dir/rules" -type f -name '*.md' | LC_ALL=C sort)
+  fi
+  if [[ -d "$pack_dir/skills" ]]; then
+    while IFS= read -r path; do
+      validate_name "$path"
+      printf 'skills/%s\t%s\n' "$(basename "$path")" "$path" >>"$WORK/units"
+    done < <(find "$pack_dir/skills" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
+  fi
+}
+
+# list_desired <pack>: writes the manifest paths the pack would own in the current mode
+# to $WORK/desired (skills expand to their files in copy mode).
+list_desired() {
+  local rel src path
+  list_units "$1"
+  : >"$WORK/desired"
+  while IFS=$'\t' read -r rel src; do
+    if [[ "$MODE" == copy && "$rel" == skills/* ]]; then
+      while IFS= read -r path; do
+        echo "$rel/${path#"$src/"}" >>"$WORK/desired"
+      done < <(find "$src" -type f | LC_ALL=C sort)
+    else
+      echo "$rel" >>"$WORK/desired"
+    fi
+  done <"$WORK/units"
+}
+
+# --- synchronisation ----------------------------------------------------------
+
+copy_into() {
+  mkdir -p "$(dirname "$2")"
+  cp "$1" "$2"
+}
+
+link_into() {
+  mkdir -p "$(dirname "$2")"
+  ln -s "$1" "$2"
+}
+
+# sync_copy_file <pack> <rel> <source>
+sync_copy_file() {
+  local pack="$1" rel="$2" src="$3" dst="$DEST/$2" recorded src_hash current
+  validate_name "$rel"
+  recorded="$(old_value "$pack" "$rel")"
+  src_hash="$(hash_file "$src")"
+
+  if [[ -n "$recorded" ]]; then
+    if ! path_exists "$dst"; then
+      copy_into "$src" "$dst"
+      echo "  + $rel (restaurado)"
+      COUNT_INSTALLED=$((COUNT_INSTALLED + 1))
+      record file "$pack" "$rel" "$src_hash"
+      return
+    fi
+    current="$(current_hash "$dst")"
+    if [[ "$current" == "$recorded" ]]; then
+      if [[ "$src_hash" != "$recorded" ]]; then
+        copy_into "$src" "$dst"
+        echo "  ~ $rel"
+        COUNT_UPDATED=$((COUNT_UPDATED + 1))
+      fi
+      record file "$pack" "$rel" "$src_hash"
+    elif [[ "$current" == "$src_hash" ]]; then
+      # The local edit already matches the repository: nothing to protect.
+      record file "$pack" "$rel" "$src_hash"
+    elif [[ $FORCE -eq 1 ]]; then
+      rm -rf "$dst"
+      copy_into "$src" "$dst"
+      echo "  ~ $rel (sobrescrito)"
+      COUNT_UPDATED=$((COUNT_UPDATED + 1))
+      record file "$pack" "$rel" "$src_hash"
+    else
+      warn "modificado localmente, se conserva (usa --force para sobrescribir): $rel"
+      COUNT_KEPT=$((COUNT_KEPT + 1))
+      record file "$pack" "$rel" "$recorded"
+    fi
+    return
+  fi
+
+  if ! path_exists "$dst"; then
+    copy_into "$src" "$dst"
+    echo "  + $rel"
+    COUNT_INSTALLED=$((COUNT_INSTALLED + 1))
+    record file "$pack" "$rel" "$src_hash"
+  elif [[ "$(current_hash "$dst")" == "$src_hash" ]]; then
+    # Identical file from an older install without manifest: adopt it.
+    record file "$pack" "$rel" "$src_hash"
+  elif [[ $FORCE -eq 1 ]]; then
+    rm -rf "$dst"
+    copy_into "$src" "$dst"
+    echo "  + $rel (sobrescrito)"
+    COUNT_INSTALLED=$((COUNT_INSTALLED + 1))
+    record file "$pack" "$rel" "$src_hash"
+  else
+    echo "  omitido (ya existe, usa --force): $rel"
+    COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+  fi
+}
+
+# sync_copy_skill <pack> <rel> <source-dir>: a skill the user already has (and rem-ai
+# does not manage) is skipped as a whole unless it is identical or --force is given.
+sync_copy_skill() {
+  local pack="$1" rel="$2" src="$3" dst="$DEST/$2" path
+  if path_exists "$dst" && ! has_managed_prefix "$pack" "$rel/"; then
+    if [[ -d "$dst" && ! -L "$dst" ]] && diff -rq "$src" "$dst" >/dev/null 2>&1; then
+      : # Identical: every file is adopted below.
+    elif [[ $FORCE -eq 1 ]]; then
+      rm -rf "$dst"
+    else
+      echo "  omitido (ya existe, usa --force): $rel"
+      COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+      return
+    fi
+  fi
+  while IFS= read -r path; do
+    sync_copy_file "$pack" "$rel/${path#"$src/"}" "$path"
+  done < <(find "$src" -type f | LC_ALL=C sort)
+}
+
+# sync_link <pack> <rel> <source>
+sync_link() {
+  local pack="$1" rel="$2" src="$3" dst="$DEST/$2" recorded
+  recorded="$(old_value "$pack" "$rel")"
+
+  if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+    record link "$pack" "$rel" "$src"
+  elif ! path_exists "$dst"; then
+    link_into "$src" "$dst"
+    if [[ -n "$recorded" ]]; then
+      echo "  + $rel (restaurado)"
+    else
+      echo "  + $rel"
+    fi
+    COUNT_INSTALLED=$((COUNT_INSTALLED + 1))
+    record link "$pack" "$rel" "$src"
+  elif [[ -n "$recorded" && -L "$dst" && "$(readlink "$dst")" == "$recorded" ]]; then
+    rm "$dst"
+    link_into "$src" "$dst"
+    echo "  ~ $rel"
+    COUNT_UPDATED=$((COUNT_UPDATED + 1))
+    record link "$pack" "$rel" "$src"
+  elif [[ $FORCE -eq 1 ]]; then
+    rm -rf "$dst"
+    link_into "$src" "$dst"
+    echo "  + $rel (sobrescrito)"
+    COUNT_INSTALLED=$((COUNT_INSTALLED + 1))
+    record link "$pack" "$rel" "$src"
+  elif [[ -n "$recorded" ]]; then
+    warn "sustituido localmente, se conserva (usa --force para reenlazar): $rel"
+    COUNT_KEPT=$((COUNT_KEPT + 1))
+    record link "$pack" "$rel" "$recorded"
+  else
+    echo "  omitido (ya existe, usa --force): $rel"
+    COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+  fi
+}
+
+# is_unmodified <kind> <path> <value>: true when the path is still exactly what rem-ai installed.
+is_unmodified() {
+  if [[ "$1" == link ]]; then
+    [[ -L "$2" && "$(readlink "$2")" == "$3" ]]
+  else
+    [[ -f "$2" && ! -L "$2" && "$(hash_file "$2")" == "$3" ]]
+  fi
+}
+
+# remove_empty_parents <path>: removes the directories left empty up to (not including) DEST.
+remove_empty_parents() {
+  local dir
+  dir="$(dirname "$1")"
+  while [[ "$dir" == "$DEST"/* ]]; do
+    # rmdir only succeeds on empty directories, which is exactly where we must stop.
+    rmdir "$dir" 2>/dev/null || break
+    dir="$(dirname "$dir")"
+  done
+}
+
+# release_entry <kind> <rel> <value>: deletes a managed entry unless the user changed it.
+# Never uses rm -rf: only files and symlinks are removed.
+release_entry() {
+  local kind="$1" rel="$2" value="$3" dst="$DEST/$2"
+  path_exists "$dst" || return 0
+  if is_unmodified "$kind" "$dst" "$value" \
+    || { [[ $FORCE -eq 1 ]] && { [[ -L "$dst" ]] || [[ ! -d "$dst" ]]; }; }; then
+    rm -f "$dst"
+    remove_empty_parents "$dst"
+    echo "  - $rel"
+    COUNT_REMOVED=$((COUNT_REMOVED + 1))
+  else
+    warn "modificado localmente, se conserva y deja de estar gestionado por rem-ai: $rel"
+    COUNT_KEPT=$((COUNT_KEPT + 1))
+  fi
+}
+
+# prune_pack <pack>: releases the pack's old entries that are not in $WORK/new_pack.
+prune_pack() {
+  local kind pack rel value
+  while IFS=$'\t' read -r kind pack rel value; do
+    if ! awk -F'\t' -v r="$rel" '$3 == r { found = 1 } END { exit !found }' "$WORK/new_pack"; then
+      release_entry "$kind" "$rel" "$value"
+    fi
+  done < <(awk -F'\t' -v p="$1" '$2 == p' "$WORK/old")
+}
+
+sync_pack() {
+  local pack="$1" rel src
+  : >"$WORK/new_pack"
+  list_units "$pack"
+  while IFS=$'\t' read -r rel src; do
+    if [[ "$MODE" == link ]]; then
+      sync_link "$pack" "$rel" "$src"
+    elif [[ "$rel" == skills/* ]]; then
+      sync_copy_skill "$pack" "$rel" "$src"
+    else
+      sync_copy_file "$pack" "$rel" "$src"
+    fi
+  done < <(cat "$WORK/units")
+  prune_pack "$pack"
+  merge_pack "$pack"
+  add_pack "$pack"
+}
+
+release_pack() {
+  : >"$WORK/new_pack"
+  prune_pack "$1"
+  merge_pack "$1"
+  remove_pack "$1"
+}
+
+# --- git ----------------------------------------------------------------------
+
+# pull_repo: fast-forwards the rem-ai clone; any problem is a warning, never an error,
+# so update can still synchronise from the local tree.
+pull_repo() {
+  local output
+  if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    warn "$REPO_ROOT no es un repositorio git; se sincroniza desde los ficheros locales."
+    return 0
+  fi
+  if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)" ]]; then
+    warn "el repositorio $REPO_ROOT tiene cambios locales sin commit; no se descargan cambios."
+    return 0
+  fi
+  if ! git -C "$REPO_ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    warn "la rama actual de $REPO_ROOT no tiene rama upstream; no se descargan cambios."
+    return 0
+  fi
+  # GIT_TERMINAL_PROMPT=0: fail instead of hanging on a credentials prompt (https remotes).
+  if ! output="$(GIT_TERMINAL_PROMPT=0 git -C "$REPO_ROOT" pull --ff-only --quiet 2>&1)"; then
+    warn "no se pudo actualizar el repositorio $REPO_ROOT: ${output:-error desconocido}"
+    return 0
+  fi
+}
+
+# --- commands -----------------------------------------------------------------
+
+usage() {
+  cat <<EOF
+Uso:
+  rem-ai install [--global] [--link] [--force] <directorio-proyecto> <pack>...
+  rem-ai update [<directorio-proyecto>|--global] [--force] [--no-pull]
+  rem-ai uninstall [<directorio-proyecto>|--global] [--force] [<pack>...]
+  rem-ai status [<directorio-proyecto>|--global]
+  rem-ai list
+  rem-ai setup [--bin-dir <dir>] [--force]
+  rem-ai self-uninstall [--yes] [--force] [--bin-dir <dir>]
+  rem-ai version | help
+
+Comandos:
+  install         Instala packs en <proyecto>/.claude (o en ~/.claude con --global):
+                    agents/*.md -> .claude/agents/
+                    rules/**/*.md -> .claude/rules/<pack>/
+                    skills/<name>/ -> .claude/skills/<name>/
+                  y registra cada fichero en .claude/$MANIFEST_NAME.
+  update          Descarga la última versión del repositorio (git pull --ff-only) y
+                  sincroniza los packs instalados: actualiza, añade y elimina ficheros,
+                  pero conserva los que hayas modificado (salvo con --force).
+  uninstall       Elimina los packs indicados (todos si no indicas ninguno). Solo borra
+                  ficheros del manifiesto que no hayas modificado (salvo con --force).
+  status          Muestra packs, modo, versión instalada y ficheros modificados o ausentes.
+  list            Lista los packs disponibles.
+  setup           Crea el comando rem-ai en el PATH (por defecto en ~/.local/bin).
+  self-uninstall  Desinstala rem-ai de todas las instalaciones registradas y elimina el
+                  comando del PATH. Sin --yes solo muestra lo que haría.
+
+El directorio del proyecto es, por defecto, el directorio actual (salvo en install).
+
+Opciones:
+  --global   Usa ~/.claude (disponible en todos los proyectos).
+  --link     Crea enlaces simbólicos en lugar de copiar (se actualizan con git pull).
+  --force    Sobrescribe o elimina también ficheros existentes o modificados.
+  --no-pull  En update, no descarga cambios del repositorio.
+
+El pack core recomienda el servidor MCP 'engram' para el handoff entre agentes;
+sin él, los agentes usan ficheros de handoff (regla agent-handoff).
+EOF
+}
+
+print_summary() {
+  echo "Hecho: $COUNT_INSTALLED instalados, $COUNT_UPDATED actualizados, $COUNT_REMOVED eliminados, $COUNT_KEPT conservados, $COUNT_SKIPPED omitidos."
+}
+
+cmd_install() {
+  local target="" packs=() pack
+  MODE=copy
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --global) GLOBAL=1 ;;
+      --link) MODE=link ;;
+      --force) FORCE=1 ;;
+      --list) cmd_list; return 0 ;;
+      -h | --help) usage; return 0 ;;
+      -*) echo "Opción desconocida: $1" >&2; usage >&2; exit 1 ;;
+      *)
+        if [[ $GLOBAL -eq 0 && -z "$target" ]]; then
+          target="$1"
+        else
+          packs+=("$1")
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [[ $GLOBAL -eq 1 && -n "$target" ]]; then
+    # With --global the first positional argument is also a pack.
+    packs=("$target" ${packs[@]+"${packs[@]}"})
+    target=""
+  fi
+  if [[ $GLOBAL -eq 0 && -z "$target" ]]; then
+    echo "Falta el directorio del proyecto." >&2
+    usage >&2
+    exit 1
+  fi
+  resolve_dest "$target"
+
+  if [[ ${#packs[@]} -eq 0 ]]; then
+    echo "Indica al menos un pack. Disponibles:" >&2
+    list_packs >&2
+    exit 1
+  fi
+  for pack in "${packs[@]}"; do
+    if ! pack_exists "$pack"; then
+      echo "Pack desconocido: $pack. Disponibles:" >&2
+      list_packs >&2
+      exit 1
+    fi
+  done
+
+  if load_manifest; then
+    check_mode_and_repo
+  fi
+  cp "$WORK/old" "$WORK/entries"
+  mkdir -p "$DEST"
+
+  echo "Instalando en $DEST"
+  for pack in "${packs[@]}"; do
+    echo "[$pack]"
+    sync_pack "$pack"
+  done
+  finish_dest
+  print_summary
+
+  for pack in "${packs[@]}"; do
+    if [[ "$pack" == "core" ]]; then
+      check_engram
+      break
+    fi
+  done
+}
+
+# parse_target_args: shared parsing for update, uninstall and status.
+# Sets TARGET and EXTRA_ARGS (remaining positional arguments).
+parse_target_args() {
+  TARGET=""
+  EXTRA_ARGS=()
+  NO_PULL=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --global) GLOBAL=1 ;;
+      --force) FORCE=1 ;;
+      --no-pull) NO_PULL=1 ;;
+      -h | --help) usage; exit 0 ;;
+      -*) echo "Opción desconocida: $1" >&2; usage >&2; exit 1 ;;
+      *)
+        if [[ $GLOBAL -eq 0 && -z "$TARGET" ]]; then
+          TARGET="$1"
+        else
+          EXTRA_ARGS+=("$1")
+        fi
+        ;;
+    esac
+    shift
+  done
+  if [[ $GLOBAL -eq 1 && -n "$TARGET" ]]; then
+    EXTRA_ARGS=("$TARGET" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"})
+    TARGET=""
+  fi
+  resolve_dest "$TARGET"
+}
+
+require_manifest() {
+  load_manifest || die "no hay ninguna instalación de rem-ai en $DEST (falta $MANIFEST_NAME)."
+  MODE="$M_MODE"
+}
+
+cmd_update() {
+  local args=("$@") before after pack installed_packs=()
+  parse_target_args "$@"
+  [[ ${#EXTRA_ARGS[@]} -eq 0 ]] || die "update no acepta packs; usa 'rem-ai install' para añadir packs."
+  require_manifest
+
+  if [[ $NO_PULL -eq 0 ]]; then
+    before="$(repo_commit)"
+    pull_repo
+    after="$(repo_commit)"
+    if [[ "$before" != "$after" ]]; then
+      echo "Repositorio actualizado: ${before:0:7} -> ${after:0:7}"
+      # Re-run the freshly pulled script so the new logic performs the synchronisation.
+      cleanup_work
+      trap - EXIT
+      exec "${BASH:-bash}" "$SELF" update --no-pull ${args[@]+"${args[@]}"}
+    fi
+  fi
+
+  check_mode_and_repo
+  cp "$WORK/old" "$WORK/entries"
+  while IFS= read -r pack; do
+    installed_packs+=("$pack")
+  done <"$WORK/packs"
+
+  echo "Actualizando $DEST"
+  for pack in ${installed_packs[@]+"${installed_packs[@]}"}; do
+    echo "[$pack]"
+    if pack_exists "$pack"; then
+      sync_pack "$pack"
+    else
+      warn "el pack '$pack' ya no existe en el repositorio; se desinstala."
+      release_pack "$pack"
+    fi
+  done
+  finish_dest
+  print_summary
+}
+
+cmd_uninstall() {
+  local pack packs=()
+  parse_target_args "$@"
+  require_manifest
+
+  if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+    for pack in "${EXTRA_ARGS[@]}"; do
+      grep -qxF "$pack" "$WORK/packs" || die "el pack '$pack' no está instalado en $DEST."
+      packs+=("$pack")
+    done
+  else
+    while IFS= read -r pack; do
+      packs+=("$pack")
+    done <"$WORK/packs"
+  fi
+
+  cp "$WORK/old" "$WORK/entries"
+  echo "Desinstalando de $DEST"
+  for pack in ${packs[@]+"${packs[@]}"}; do
+    echo "[$pack]"
+    release_pack "$pack"
+  done
+  finish_dest
+  print_summary
+}
+
+cmd_status() {
+  local head behind kind pack rel value dst packs_line
+  parse_target_args "$@"
+  require_manifest
+  head="$(repo_commit)"
+  packs_line="$(tr '\n' ' ' <"$WORK/packs")"
+
+  echo "Instalación: $DEST"
+  echo "Modo: $M_MODE"
+  echo "Packs: ${packs_line% }"
+  echo "Commit instalado: $M_COMMIT ($M_VERSION)"
+  echo "Repositorio: $REPO_ROOT @ $head ($(repo_version))"
+  if behind="$(git -C "$REPO_ROOT" rev-list --count 'HEAD..@{u}' 2>/dev/null)" && [[ "$behind" != 0 ]]; then
+    echo "El repositorio va $behind commits por detrás de upstream (según el último fetch)."
+  fi
+  if [[ "$M_COMMIT" != "$head" ]]; then
+    echo "Desactualizado: ejecuta 'rem-ai update'."
+  fi
+
+  while IFS=$'\t' read -r kind pack rel value; do
+    dst="$DEST/$rel"
+    if ! path_exists "$dst"; then
+      echo "  falta: $rel"
+    elif ! is_unmodified "$kind" "$dst" "$value"; then
+      echo "  modificado: $rel"
+    fi
+  done <"$WORK/old"
+
+  while IFS= read -r pack; do
+    if ! pack_exists "$pack"; then
+      echo "  pack eliminado del repositorio: $pack"
+      continue
+    fi
+    list_desired "$pack"
+    while IFS= read -r rel; do
+      if ! awk -F'\t' -v p="$pack" -v r="$rel" '$2 == p && $3 == r { found = 1 } END { exit !found }' "$WORK/old"; then
+        echo "  no instalado: $rel"
+      fi
+    done <"$WORK/desired"
+  done <"$WORK/packs"
+}
+
+cmd_list() {
+  echo "Packs disponibles:"
+  list_packs
+}
+
+default_bin_dir() {
+  echo "$HOME/.local/bin"
+}
+
+cmd_setup() {
+  local bin_dir link
+  bin_dir="$(default_bin_dir)"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --bin-dir) [[ $# -ge 2 ]] || die "--bin-dir necesita un directorio."; bin_dir="$2"; shift ;;
+      --force) FORCE=1 ;;
+      -h | --help) usage; return 0 ;;
+      *) echo "Opción desconocida: $1" >&2; usage >&2; exit 1 ;;
+    esac
+    shift
+  done
+  link="$bin_dir/rem-ai"
+
+  if [[ -L "$link" && "$(readlink "$link")" == "$SELF" ]]; then
+    echo "rem-ai ya está configurado en $link"
+  else
+    if path_exists "$link"; then
+      [[ $FORCE -eq 1 ]] || die "ya existe $link; usa --force para reemplazarlo."
+      rm -f "$link"
+    fi
+    mkdir -p "$bin_dir"
+    ln -s "$SELF" "$link"
+    echo "Creado $link -> $SELF"
+  fi
+  case ":$PATH:" in
+    *":$bin_dir:"*) ;;
+    *) warn "$bin_dir no está en el PATH; añádelo a tu shell para usar 'rem-ai'." ;;
+  esac
+}
+
+cmd_self_uninstall() {
+  local yes=0 failed=0 bin_dir link registry dest installs=() uninstall_args
+  bin_dir="$(default_bin_dir)"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes) yes=1 ;;
+      --force) FORCE=1 ;;
+      --bin-dir) [[ $# -ge 2 ]] || die "--bin-dir necesita un directorio."; bin_dir="$2"; shift ;;
+      -h | --help) usage; return 0 ;;
+      *) echo "Opción desconocida: $1" >&2; usage >&2; exit 1 ;;
+    esac
+    shift
+  done
+  link="$bin_dir/rem-ai"
+  registry="$(registry_file)"
+
+  if [[ -f "$registry" ]]; then
+    while IFS= read -r dest; do
+      [[ -n "$dest" ]] && installs+=("$dest")
+    done <"$registry"
+  fi
+
+  echo "Se desinstalará rem-ai de:"
+  if [[ ${#installs[@]} -eq 0 ]]; then
+    echo "  (ninguna instalación registrada)"
+  fi
+  for dest in ${installs[@]+"${installs[@]}"}; do
+    echo "  $dest"
+  done
+  if [[ -L "$link" && "$(readlink "$link")" == "$SELF" ]]; then
+    echo "Se eliminará el comando: $link"
+  fi
+  if [[ $yes -eq 0 ]]; then
+    echo "Ejecuta 'rem-ai self-uninstall --yes' para continuar."
+    return 1
+  fi
+
+  for dest in ${installs[@]+"${installs[@]}"}; do
+    if [[ ! -f "$dest/$MANIFEST_NAME" ]]; then
+      echo "Sin manifiesto, se omite: $dest"
+      continue
+    fi
+    uninstall_args=()
+    [[ $FORCE -eq 1 ]] && uninstall_args+=(--force)
+    if [[ "$dest" == "$HOME/.claude" ]]; then
+      uninstall_args+=(--global)
+    else
+      uninstall_args+=("$(dirname "$dest")")
+    fi
+    if ! "${BASH:-bash}" "$SELF" uninstall "${uninstall_args[@]}"; then
+      warn "no se pudo desinstalar de $dest; se mantiene en el registro."
+      failed=1
+    fi
+  done
+
+  if [[ -L "$link" && "$(readlink "$link")" == "$SELF" ]]; then
+    rm "$link"
+    echo "Eliminado $link"
+  fi
+  if [[ $failed -eq 1 ]]; then
+    warn "revisa los errores y vuelve a ejecutar '$SELF self-uninstall --yes'."
+    return 1
+  fi
+  rm -f "$registry"
+  # Only removes the config directory when nothing else is left in it.
+  rmdir "$(dirname "$registry")" 2>/dev/null || true
+  printf 'Para borrar rem-ai por completo, elimina el repositorio: rm -rf %q\n' "$REPO_ROOT"
+}
+
+cmd_version() {
+  echo "rem-ai $(repo_version) ($(repo_commit))"
+}
+
+main() {
+  local command="${1:-help}"
+  [[ $# -gt 0 ]] && shift
+  resolve_self
+  init_hash
+  init_work
+  case "$command" in
+    install) cmd_install "$@" ;;
+    update) cmd_update "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    status) cmd_status "$@" ;;
+    list) cmd_list ;;
+    setup) cmd_setup "$@" ;;
+    self-uninstall) cmd_self_uninstall "$@" ;;
+    version | --version) cmd_version ;;
+    help | -h | --help) usage ;;
+    *) echo "Comando desconocido: $command" >&2; usage >&2; exit 1 ;;
+  esac
+}
+
+main "$@"
+exit $?
