@@ -17,7 +17,7 @@ rem-ai/
 ├── packs/
 │   ├── core/              # Válido para cualquier proyecto
 │   │   ├── agents/        # architect, code-reviewer, test-engineer, outcome-verifier
-│   │   ├── rules/         # flujo con agentes, stack, idioma, git, CI/CD, calidad de código
+│   │   ├── rules/         # flujo con agentes, handoff entre agentes, stack, idioma, git, CI/CD, calidad de código
 │   │   └── skills/        # feature-workflow, odd-cycle, tdd-cycle, new-project, tech-decision, github-ci-setup
 │   ├── java-spring/       # Java LTS + Spring Boot + Gradle + hexagonal/DDD
 │   ├── kotlin-compose/    # Kotlin Multiplatform + Compose Multiplatform
@@ -33,7 +33,7 @@ rem-ai/
 
 | Pack | Agentes | Reglas | Skills |
 |------|---------|--------|--------|
-| `core` | `architect`, `code-reviewer`, `test-engineer`, `outcome-verifier` | `agent-workflow`, `tech-stack`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `odd-cycle`, `tdd-cycle`, `new-project`, `tech-decision`, `github-ci-setup` |
+| `core` | `architect`, `code-reviewer`, `test-engineer`, `outcome-verifier` | `agent-workflow`, `agent-handoff`, `tech-stack`, `language`, `git-workflow`, `ci-cd`, `code-quality` | `feature-workflow`, `odd-cycle`, `tdd-cycle`, `new-project`, `tech-decision`, `github-ci-setup` |
 | `java-spring` | `spring-backend-dev` | `stack`, `java`, `spring-boot`, `hexagonal-ddd`, `testing-java` | — |
 | `kotlin-compose` | `android-compose-dev` | `stack`, `kotlin`, `jetpack-compose` | — |
 | `typescript` | `frontend-dev` | `stack`, `typescript`, `react`, `web-frontend` | — |
@@ -58,6 +58,19 @@ Los proyectos nuevos usan un stack aprobado (regla `tech-stack`), para que las b
 - Salirse del stack exige un ADR aceptado por el usuario (`/tech-decision`, en `docs/adr/`). Si una tecnología nueva se adopta para todos los proyectos, se incorpora aquí.
 
 ## Instalación
+
+### Requisitos
+
+El pack `core` recomienda [engram](https://github.com/Gentleman-Programming/engram) como memoria persistente para el handoff entre agentes (regla `agent-handoff`). Regístralo como servidor MCP de usuario:
+
+```bash
+claude mcp add -s user engram -- engram mcp --tools=agent
+```
+
+- Los agentes declaran sus herramientas con el prefijo `mcp__engram__` (servidor `engram` de usuario). Si instalas engram como plugin, las herramientas se llaman `mcp__plugin_engram_engram__*`: registra también el servidor de usuario o adapta el `tools` de los agentes.
+- Sin engram todo sigue funcionando: el plan, la verificación y el detalle van a ficheros de handoff en `.git/rem-ai/handoff/<slug>/`. `install.sh` avisa si no lo encuentra, sin fallar.
+
+### Instalar packs
 
 Instala en un proyecto concreto los packs que necesite (`core` es casi siempre recomendable):
 
@@ -89,6 +102,8 @@ Petición ──► architect ──────────► rama ──► a
                                               ▲                                           │
                                               └──────────── resultado NO CUMPLIDO ────────┘
 ```
+
+Los agentes no se pasan el plan copiado: el `architect` lo guarda en engram (`plan/<slug>`) y el `outcome-verifier` deja ahí la verificación (`verification/<slug>`). El detalle efímero (salida de tests, hallazgos) va a `.git/rem-ai/handoff/<slug>/`, y cada agente responde al orquestador con un bloque corto con el veredicto de cada resultado (regla `agent-handoff`). Así el orquestador delega con una referencia y no gasta contexto en informes completos.
 
 Antes de escribir código se acuerda con el usuario qué debe ser cierto al terminar: una lista corta de resultados observables (`O1`, `O2`…), cada uno con su verificación ejecutable, más las restricciones y lo que queda fuera de alcance. El plan, los tests, la revisión y la PR se refieren a esos resultados, y el cambio solo se da por terminado cuando `outcome-verifier` demuestra cada uno con evidencia (tests, comandos, peticiones reales), no porque el código "parezca correcto". ODD se combina con TDD (`/tdd-cycle`): los resultados dicen *qué* debe cumplirse y TDD, *cómo* llegar en pasos pequeños.
 
