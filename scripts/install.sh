@@ -23,6 +23,9 @@ Opciones:
   --force    Sobrescribe ficheros existentes.
   --list     Lista los packs disponibles.
   -h, --help Muestra esta ayuda.
+
+El pack core recomienda el servidor MCP 'engram' para el handoff entre agentes;
+sin él, los agentes usan ficheros de handoff (regla agent-handoff).
 EOF
 }
 
@@ -35,6 +38,18 @@ list_packs() {
       "$(find "$PACKS_DIR/$pack/rules" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')" \
       "$(find "$PACKS_DIR/$pack/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
   done
+}
+
+# check_engram: avisa (sin fallar) si el servidor MCP engram no está disponible para los agentes de core.
+check_engram() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "Aviso: no se encuentra el CLI 'claude'; no se puede comprobar el servidor MCP 'engram'." >&2
+  elif ! claude mcp get engram >/dev/null 2>&1; then
+    echo "Aviso: el servidor MCP 'engram' no está configurado (claude mcp add -s user engram -- engram mcp --tools=agent)." >&2
+  else
+    return 0
+  fi
+  echo "  Los agentes funcionarán sin memoria persistente: el detalle irá a ficheros de handoff (regla agent-handoff)." >&2
 }
 
 GLOBAL=0
@@ -143,3 +158,10 @@ for pack in "${PACKS[@]}"; do
 done
 
 echo "Hecho: $installed instalados, $skipped omitidos."
+
+for pack in "${PACKS[@]}"; do
+  if [[ "$pack" == "core" ]]; then
+    check_engram
+    break
+  fi
+done
