@@ -9,7 +9,7 @@ El flujo sigue Outcome-Driven Development (skill `/odd-cycle`): los resultados a
 
 ## 1. Resultados y plan
 - Delega en `architect` con el requisito del usuario y cualquier contexto que tengas. Su plan incluye la tabla de resultados esperados (con su verificación), las restricciones, lo que queda fuera de alcance y la rama propuesta. Lo guarda en engram (`plan/<slug>`) o en `<handoff>/plan.md` (regla `agent-handoff`) y te responde con el bloque `## Handoff`.
-- Presenta al usuario los resultados y un resumen del plan. Confirma que, si se cumplen esos resultados, el trabajo está hecho; ajusta la lista y resuelve las preguntas abiertas que cambien el diseño antes de seguir. Si cambian los resultados, actualiza el plan guardado (`mem_update` o editando `plan.md`).
+- Presenta al usuario los resultados y un resumen del plan. Confirma que, si se cumplen esos resultados, el trabajo está hecho; ajusta la lista y resuelve las preguntas abiertas que cambien el diseño antes de seguir. Si cambian los resultados, vuelve a delegar en `architect` con el `<slug>` y el cambio acordado para que actualice el plan.
 
 ## 2. Rama
 - Crea una rama nueva desde la rama principal actualizada, según la regla `git-workflow`, con un nombre que diga qué se va a implementar a partir del objetivo del plan: `<tipo>/<que-se-implementa>` (`feat/odd-architecture`, `fix/null-price-on-checkout`). Usa la rama propuesta en el plan; su `<slug>` identifica el plan y los ficheros de handoff.
@@ -18,7 +18,7 @@ El flujo sigue Outcome-Driven Development (skill `/odd-cycle`): los resultados a
 - Delega cada paso del plan en el agente especialista de la tecnología (`spring-backend-dev`, `android-compose-dev`, `frontend-dev`…), o implementa tú si no hay especialista.
 - Pasa el `<slug>`, la referencia al plan, el paso concreto a ejecutar y los IDs de los resultados que persigue (regla `agent-handoff`). No copies el plan: el agente lo lee de engram o de `plan.md`.
 - Pasos independientes (p. ej. backend y frontend) pueden ir en paralelo.
-- Si aparece un resultado nuevo o alguno deja de tener sentido, acuérdalo con el usuario y actualiza el plan guardado.
+- Si aparece un resultado nuevo o alguno deja de tener sentido, acuérdalo con el usuario y pide al `architect` que actualice el plan.
 
 ## 4. Tests
 - Delega en `test-engineer` con la referencia al plan: cada resultado cuya verificación sea un test debe quedar cubierto por al menos uno.
@@ -37,7 +37,7 @@ El flujo sigue Outcome-Driven Development (skill `/odd-cycle`): los resultados a
 ## 7. Commit y PR
 - Haz commits atómicos en inglés con Conventional Commits.
 - Sube la rama (`git push -u origin <rama>`).
-- Si el remoto es GitHub, abre la PR hacia la rama principal siguiendo la regla `git-workflow` (título, descripción, plantilla). La descripción incluye una sección "Outcomes" con la tabla de resultados y la evidencia de cada uno, tomada de `verification/<slug>`. No hagas merge.
+- Si el remoto es GitHub, abre la PR hacia la rama principal siguiendo la regla `git-workflow` (título, descripción, plantilla). La descripción incluye una sección "Outcomes" con la tabla de resultados y la evidencia de cada uno, tomada de `verification/<slug>` (o de `<handoff>/outcome-verifier.md`). No hagas merge.
 
 ## 8. Cierre
 - Resume al usuario: tabla de resultados con su estado y evidencia, ficheros principales, resultado de tests y revisión, decisiones tomadas, pendientes y enlace a la PR.

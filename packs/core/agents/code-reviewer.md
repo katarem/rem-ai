@@ -37,13 +37,14 @@ Responde al orquestador solo con el bloque de la regla `agent-handoff`:
 
 ```
 ## Handoff
-Estado: APROBADO | CAMBIOS NECESARIOS
+Estado: COMPLETADO | BLOQUEADO | REQUIERE DECISIÓN
 Agente: code-reviewer · Feature: <slug>
 
 | ID | Veredicto | Nota |
 |----|-----------|------|
 | O1 | OK / CON HALLAZGOS | <una línea> |
 
+Veredicto: APROBADO | CAMBIOS NECESARIOS
 Hallazgos: <n> CRÍTICO, <n> IMPORTANTE, <n> MENOR
 
 Detalle: `<handoff>/code-reviewer.md`
