@@ -40,7 +40,7 @@ Usa siempre el generador oficial y después ajústalo a la regla `stack` del pac
 - Dependencias al día: `renovate.json` (o `.github/dependabot.yml`) agrupando las actualizaciones menores.
 
 ## 5. Instala rem-ai
-- Instala `core` y los packs del stack con `scripts/install.sh` de rem-ai (pide al usuario la ruta de su copia local o clona rem-ai en un directorio temporal):
+- Instala `core` y los packs del stack con `rem-ai install <proyecto> <packs>` (o `scripts/install.sh` desde la copia local de rem-ai si el comando no está en el PATH; pide al usuario la ruta). Usa una copia estable, no un clon temporal: `rem-ai update` actualiza desde ese clon.
   - Backend: `core java-spring postgresql docker`.
   - Aplicación web o web de contenido: `core typescript docker`.
   - App móvil: `core kotlin-compose`.
