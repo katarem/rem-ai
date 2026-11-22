@@ -29,6 +29,7 @@ El trabajo se define por lo que debe ser cierto al terminar (resultados), no por
 
 ## 2. Acordar
 - Presenta la lista al usuario y confirma que, si se cumplen esos resultados, el trabajo está hecho. Si falta o sobra alguno, ajústala antes de escribir código.
+- En el modo ligero de `/feature-workflow` los resultados los defines tú (sin `architect`) en un plan mínimo en `<handoff>/plan.md`.
 - La lista acordada es el contrato del cambio: el plan, los tests, la revisión y la PR se refieren a ella por sus identificadores.
 
 ## 3. Implementar contra los resultados
@@ -38,7 +39,9 @@ El trabajo se define por lo que debe ser cierto al terminar (resultados), no por
 
 ## 4. Verificar
 - Delega en `outcome-verifier` con la referencia al plan; deja la verificación en `verification/<slug>` (o en `<handoff>/outcome-verifier.md`).
-- Por cada resultado `NO CUMPLIDO`, vuelve al paso 3 con la evidencia concreta. Por cada `NO VERIFICABLE`, haz la verificación ejecutable (un test, un script) o acuerda con el usuario cómo verificarlo.
+- Por cada resultado `NO CUMPLIDO`, vuelve al paso 3 retomando al mismo especialista con `SendMessage` y la evidencia concreta (si ya no está disponible, lanza uno nuevo con las rutas de handoff).
+- Por cada `NO VERIFICABLE` con nota `SIN TEST`: en el flujo completo, delega en `test-engineer`; en el modo ligero, retoma al especialista con `SendMessage` para que añada el test.
+- Por cada otro `NO VERIFICABLE`, haz la verificación ejecutable (un script) o acuerda con el usuario cómo verificarlo.
 - Repite hasta que todos estén `CUMPLIDO`.
 
 ## 5. Registrar la evidencia
