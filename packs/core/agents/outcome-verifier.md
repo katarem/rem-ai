@@ -21,9 +21,10 @@ Si no recibes resultados o alguno no tiene una verificación ejecutable, no lo i
 3. Verifica las restricciones: la suite completa del módulo, el build y el linter siguen en verde, y no se ha roto nada declarado como restricción. Ejecuta todos los comandos (también los del paso 1) añadiendo su salida completa al log y lee solo el código de salida, el final y los errores:
    ```bash
    mkdir -p "<handoff>"
-   { echo "### <ID o paso>: <comando>"; <comando>; } >> "<handoff>/outcome-verifier.log" 2>&1; echo "exit=$?"
-   tail -n 40 "<handoff>/outcome-verifier.log"   # solo la sección del último comando
-   grep -nE 'FAIL|FAILED|Error|error:' "<handoff>/outcome-verifier.log" | head -n 40
+   <comando> > "<handoff>/outcome-verifier.last.log" 2>&1; echo "exit=$?"
+   { echo "### <ID o paso>: <comando>"; cat "<handoff>/outcome-verifier.last.log"; } >> "<handoff>/outcome-verifier.log"
+   tail -n 40 "<handoff>/outcome-verifier.last.log"
+   grep -nE 'FAIL|FAILED|Error|error:' "<handoff>/outcome-verifier.last.log" | head -n 40
    ```
 4. Si necesitas arrancar la aplicación o servicios auxiliares, hazlo en segundo plano, espera a que estén listos comprobando su estado (no con `sleep` fijo) y detenlos al terminar.
 5. Guarda la verificación completa (formato de abajo) según la regla `agent-handoff`: en engram con `topic_key` `verification/<slug>` (`mem_search`; si existe, `mem_update` con su id; si no, `mem_save`; nunca un duplicado). Sin engram, o si existe pero `mem_update` no está disponible, escríbela en `<handoff>/outcome-verifier.md` con `Bash` (`mkdir -p` + `cat > … <<'EOF'`). No escribas en ninguna otra ruta.

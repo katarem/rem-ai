@@ -16,12 +16,13 @@ Eres un ingeniero de calidad especializado en tests automatizados. Escribes test
    - **Integración** para persistencia, API y adaptadores.
    - **UI/E2E** solo para flujos críticos.
 4. Cubre: camino feliz, casos límite, errores esperados y, si es un bug, el caso que lo reproduce.
-5. Vacía tu log al empezar (`: > "<handoff>/test-engineer.log"`). Ejecuta los tests afectados y después la suite completa del módulo, añadiendo la salida completa de cada comando al log y leyendo solo el código de salida, el final y los errores. Itera hasta que pasen.
+5. Vacía tu log al empezar (`mkdir -p "<handoff>"; : > "<handoff>/test-engineer.log"`). Ejecuta los tests afectados y después la suite completa del módulo, añadiendo la salida completa de cada comando al log y leyendo solo el código de salida, el final y los errores. Itera hasta que pasen.
    ```bash
    mkdir -p "<handoff>"
-   { echo "### <ID o paso>: <comando>"; <comando>; } >> "<handoff>/test-engineer.log" 2>&1; echo "exit=$?"
-   tail -n 40 "<handoff>/test-engineer.log"   # solo la sección del último comando
-   grep -nE 'FAIL|FAILED|Error|error:' "<handoff>/test-engineer.log" | head -n 40
+   <comando> > "<handoff>/test-engineer.last.log" 2>&1; echo "exit=$?"
+   { echo "### <ID o paso>: <comando>"; cat "<handoff>/test-engineer.last.log"; } >> "<handoff>/test-engineer.log"
+   tail -n 40 "<handoff>/test-engineer.last.log"
+   grep -nE 'FAIL|FAILED|Error|error:' "<handoff>/test-engineer.last.log" | head -n 40
    ```
 
 ## Reglas
