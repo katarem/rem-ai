@@ -146,18 +146,38 @@ Si creaste el comando con `setup --bin-dir <dir>`, pasa también `--bin-dir <dir
 
 ## Flujo de trabajo
 
-El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`), guiado por resultados (**Outcome-Driven Development**, skill `/odd-cycle`):
+El pack `core` define un flujo de trabajo por defecto (regla `agent-workflow` y skill `/feature-workflow`), guiado por resultados (**Outcome-Driven Development**, skill `/odd-cycle`). Tiene dos modos.
+
+**Modo ligero**, para cambios pequeños (una tecnología, como mucho 3 ficheros de producción, sin dependencias, esquema ni contrato nuevos y de 1 a 3 resultados claros):
 
 ```
-Petición ──► architect ──────────► rama ──► agente especialista ──► test-engineer ──► outcome-verifier ──► code-reviewer ──► commits + PR
-             (resultados O1…On          (spring-backend-dev,     (tests por         (evidencia por      (revisión)       (sección
-              + plan, acordados          android-compose-dev,     resultado)         resultado)                           "Outcomes")
-              con el usuario)            frontend-dev…)                                   │
-                                              ▲                                           │
-                                              └──────────── resultado NO CUMPLIDO ────────┘
+Petición ──► orquestador ──────► rama ──► agente especialista ──► outcome-verifier ──► commits + PR
+             (resultados O1…On          (código + tests          (pasada combinada:
+              en <handoff>/plan.md,      por resultado)           verificación + revisión)
+              acordados con el usuario)       ▲                          │
+                                              └── SendMessage: NO CUMPLIDO, SIN TEST o hallazgos
 ```
 
-Los agentes no se pasan el plan copiado: el `architect` lo guarda en engram (`plan/<slug>`) y el `outcome-verifier` deja ahí la verificación (`verification/<slug>`). El detalle efímero (salida de tests, hallazgos) va a `.git/rem-ai/handoff/<slug>/`, y cada agente responde al orquestador con un bloque corto con el veredicto de cada resultado (regla `agent-handoff`). Así el orquestador delega con una referencia y no gasta contexto en informes completos.
+**Flujo completo**, para el resto:
+
+```
+Petición ──► architect ──────────► rama ──► agente especialista ──► outcome-verifier ──► code-reviewer ──► commits + PR
+             (resultados O1…On          (spring-backend-dev,     (evidencia por      (revisión)       (sección
+              + plan, acordados          android-compose-dev,     resultado)                           "Outcomes")
+              con el usuario)            frontend-dev…:               │
+                                         código + tests)              │
+                                              ▲                       │
+                                              └── SendMessage: NO CUMPLIDO o hallazgos
+```
+
+En el flujo completo, `test-engineer` solo entra si `outcome-verifier` marca resultados `SIN TEST`, para reproducir un bug antes del fix o si se pide TDD; en el modo ligero los `SIN TEST` vuelven al especialista con `SendMessage`.
+
+Para gastar menos tokens:
+- Los agentes no se pasan el plan copiado: el `architect` lo guarda en engram (`plan/<slug>`) y el `outcome-verifier` deja ahí la verificación (`verification/<slug>`). El detalle efímero (hallazgos, evidencias) va a `.git/rem-ai/handoff/<slug>/` y cada agente responde al orquestador con un bloque corto con el veredicto de cada resultado (regla `agent-handoff`).
+- La salida de build y tests se guarda completa en `.git/rem-ai/handoff/<slug>/<agente>.log`; al contexto solo llegan el código de salida, el final y los errores.
+- En las correcciones se retoma al mismo agente con `SendMessage`, que ya tiene el código en contexto, en lugar de lanzar uno nuevo.
+- `outcome-verifier` y `code-reviewer` usan `model: sonnet`, igual que `test-engineer` cuando entra por un `SIN TEST`; `architect` y los especialistas heredan el modelo de la sesión.
+- La regla `ci-cd` solo se carga al tocar `.github/`, `.releaserc*` o `CHANGELOG.md`.
 
 Antes de escribir código se acuerda con el usuario qué debe ser cierto al terminar: una lista corta de resultados observables (`O1`, `O2`…), cada uno con su verificación ejecutable, más las restricciones y lo que queda fuera de alcance. El plan, los tests, la revisión y la PR se refieren a esos resultados, y el cambio solo se da por terminado cuando `outcome-verifier` demuestra cada uno con evidencia (tests, comandos, peticiones reales), no porque el código "parezca correcto". ODD se combina con TDD (`/tdd-cycle`): los resultados dicen *qué* debe cumplirse y TDD, *cómo* llegar en pasos pequeños.
 
