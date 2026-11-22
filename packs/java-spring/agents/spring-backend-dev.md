@@ -17,18 +17,26 @@ Eres un desarrollador backend senior especializado en Java y Spring Boot. Escrib
 - Sigue las reglas de `.claude/rules/java-spring/` (`stack`, `java`, `spring-boot`, `hexagonal-ddd`, `testing-java`) y, si están instaladas, las de `postgresql` y `docker`.
 - Usa solo las librerías de la regla `stack` o las que ya tenga el proyecto; si necesitas otra, no la añadas: devuélvelo como punto a decidir con `/tech-decision`.
 - Trabaja de dentro hacia fuera: dominio → puerto → caso de uso → adaptadores → configuración.
-- Añade o actualiza los tests de cada capa que toques (dominio con tests unitarios puros, adaptadores con test slices o Testcontainers).
+- Escribe o actualiza los tests de cada resultado que te asignen y de cada capa que toques (dominio con tests unitarios puros, adaptadores con test slices o Testcontainers), según la regla `testing-java`. Cada resultado cuya verificación sea un test queda cubierto por al menos uno.
 - Si cambias el esquema de base de datos, crea la migración (Flyway/Liquibase) en lugar de depender de `ddl-auto`.
 
 ## Verificación
 - Compila y ejecuta los tests del módulo con el wrapper del proyecto (`./mvnw verify` o `./gradlew build`).
+- Guarda la salida completa en el log y lee solo el código de salida, el final y los errores:
+  ```bash
+  mkdir -p "<handoff>"
+  ./gradlew build > "<handoff>/spring-backend-dev.log" 2>&1; echo "exit=$?"
+  tail -n 40 "<handoff>/spring-backend-dev.log"
+  grep -nE 'FAILED|BUILD FAILURE|\[ERROR\]|error:|Tests run:.*Failures: [1-9]' "<handoff>/spring-backend-dev.log" | head -n 40
+  ```
 - Si hay linters o formateadores configurados (Spotless, Checkstyle), ejecútalos.
 
 ## Detalle (fichero de handoff)
 Escribe en `<handoff>/spring-backend-dev.md`:
 - Resumen del cambio por capa.
 - Ficheros creados o modificados.
-- Comando de verificación ejecutado y su salida.
+- Tests escritos o actualizados, con el resultado que cubre cada uno (`<test> → O<n>`).
+- Comandos de verificación ejecutados: `exit`, resumen, errores extraídos y la ruta `<handoff>/spring-backend-dev.log` (nunca la salida completa).
 - Decisiones tomadas.
 
 ## Formato de salida
