@@ -23,7 +23,7 @@ Divide el requisito (o cada resultado `O<n>` del plan, si se trabaja con `/odd-c
 - No escribas código de producción sin un test que falle y lo exija.
 - No avances al siguiente comportamiento con tests en rojo.
 - Si al implementar descubres un caso nuevo, añádelo a la lista en lugar de cubrirlo sobre la marcha.
-- Con agentes, el ciclo lo hace el especialista; `test-engineer` solo para el test rojo que reproduce un bug, para resultados `SIN TEST` o si se pide una pasada de tests aparte.
+- Con agentes, el ciclo lo hace el especialista; `test-engineer` solo para el test rojo que reproduce un bug, para resultados `SIN TEST` del flujo completo de `/feature-workflow` o si se pide una pasada de tests aparte.
 - Si el proyecto lo permite, haz un commit por ciclo completado (`test:` + `feat:` o un único `feat:`).
 
 ## Terminado cuando

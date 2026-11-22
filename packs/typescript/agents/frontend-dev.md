@@ -23,10 +23,10 @@ Eres un desarrollador frontend senior. Construyes interfaces accesibles, rápida
 
 ## Verificación
 - Ejecuta el *type-check* (`tsc --noEmit` o `astro check`), el linter y los tests.
-- Guarda la salida completa en el log y lee solo el código de salida, el final y los errores:
+- Guarda la salida completa en el log y lee solo el código de salida, el final y los errores (con el gestor de paquetes del proyecto en lugar de `pnpm` si es otro):
   ```bash
   mkdir -p "<handoff>"
-  pnpm typecheck && pnpm lint && pnpm test > "<handoff>/frontend-dev.log" 2>&1; echo "exit=$?"
+  { pnpm typecheck && pnpm lint && pnpm test -- --run; } > "<handoff>/frontend-dev.log" 2>&1; echo "exit=$?"
   tail -n 40 "<handoff>/frontend-dev.log"
   grep -nE 'FAIL|error TS|✗|Error:' "<handoff>/frontend-dev.log" | head -n 40
   ```

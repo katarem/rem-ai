@@ -16,20 +16,20 @@ Si no recibes resultados o alguno no tiene una verificación ejecutable, no lo i
 
 ## Proceso
 
-1. Para cada resultado, ejecuta exactamente la verificación indicada (test concreto, comando, petición HTTP, build, script). Si no es ejecutable tal cual, propón la verificación mínima equivalente, ejecútala y dilo.
+1. Vacía tu log al empezar (`mkdir -p "<handoff>"; : > "<handoff>/outcome-verifier.log"`). Para cada resultado, ejecuta exactamente la verificación indicada (test concreto, comando, petición HTTP, build, script) con el fragmento del paso 3, que añade cada comando al log bajo su cabecera. Si no es ejecutable tal cual, propón la verificación mínima equivalente, ejecútala y dilo.
 2. Comprueba que la evidencia demuestra el resultado y no otra cosa: un test que pasa solo cuenta si prueba ese comportamiento (léelo); una respuesta HTTP solo cuenta si su código y cuerpo son los esperados.
-3. Verifica las restricciones: la suite completa del módulo, el build y el linter siguen en verde, y no se ha roto nada declarado como restricción. Ejecuta los comandos con la salida completa en el log y lee solo el código de salida, el final y los errores:
+3. Verifica las restricciones: la suite completa del módulo, el build y el linter siguen en verde, y no se ha roto nada declarado como restricción. Ejecuta todos los comandos (también los del paso 1) añadiendo su salida completa al log y lee solo el código de salida, el final y los errores:
    ```bash
    mkdir -p "<handoff>"
-   <comando> > "<handoff>/outcome-verifier.log" 2>&1; echo "exit=$?"
-   tail -n 40 "<handoff>/outcome-verifier.log"
+   { echo "### <ID o paso>: <comando>"; <comando>; } >> "<handoff>/outcome-verifier.log" 2>&1; echo "exit=$?"
+   tail -n 40 "<handoff>/outcome-verifier.log"   # solo la sección del último comando
    grep -nE 'FAIL|FAILED|Error|error:' "<handoff>/outcome-verifier.log" | head -n 40
    ```
 4. Si necesitas arrancar la aplicación o servicios auxiliares, hazlo en segundo plano, espera a que estén listos comprobando su estado (no con `sleep` fijo) y detenlos al terminar.
 5. Guarda la verificación completa (formato de abajo) según la regla `agent-handoff`: en engram con `topic_key` `verification/<slug>` (`mem_search`; si existe, `mem_update` con su id; si no, `mem_save`; nunca un duplicado). Sin engram, o si existe pero `mem_update` no está disponible, escríbela en `<handoff>/outcome-verifier.md` con `Bash` (`mkdir -p` + `cat > … <<'EOF'`). No escribas en ninguna otra ruta.
 
 ## Pasada combinada (modo ligero)
-Si te la piden, tras verificar los resultados revisa el cambio (`git diff`, leyendo los ficheros completos solo si hace falta) en este orden: corrección (bugs, casos límite, errores), seguridad (secretos, inyecciones, validación de entrada, datos sensibles en logs), reglas del proyecto y del stack (`.claude/rules/`; dependencias del stack aprobado o con ADR) y tests que prueban comportamiento y no implementación. Verifica cada hallazgo citando el código. Los hallazgos van en `<handoff>/outcome-verifier.md` (nunca en engram) con el formato de `code-reviewer`: `### [CRÍTICO|IMPORTANTE|MENOR] <título>` con ubicación, problema y sugerencia.
+Si te la piden, tras verificar los resultados revisa el cambio (`git diff`, leyendo los ficheros completos solo si hace falta) en este orden: corrección (bugs, casos límite, errores), seguridad (secretos, inyecciones, validación de entrada, datos sensibles en logs), reglas del proyecto y del stack (`.claude/rules/`; dependencias del stack aprobado o con ADR) y tests que prueban comportamiento y no implementación. Verifica cada hallazgo citando el código. Los hallazgos van en `<handoff>/outcome-verifier.md` (nunca en engram) con el formato de `code-reviewer`: `### [CRÍTICO|IMPORTANTE|MENOR] <título>` con ubicación, problema y sugerencia. Si la verificación está en engram, `Detalle:` lista las dos referencias (`verification/<slug>` y `<handoff>/outcome-verifier.md`).
 
 ## Formato de la verificación (lo que se guarda)
 

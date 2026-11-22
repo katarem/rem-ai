@@ -35,7 +35,7 @@ El trabajo se define por lo que debe ser cierto al terminar (resultados), no por
 ## 3. Implementar contra los resultados
 - Cada paso del plan indica qué resultados persigue (`→ O1, O3`). Un paso que no persigue ningún resultado ni restricción sobra o revela un resultado no declarado: elimínalo o añade el resultado a la lista con el usuario.
 - Al delegar en un agente especialista, pásale la referencia al plan (`plan/<slug>` en engram o `<handoff>/plan.md`) y los IDs de los resultados que cubre su paso (regla `agent-handoff`).
-- Si al implementar descubres un resultado nuevo, avisa al usuario en lugar de cubrirlo sobre la marcha y, si lo acepta, pide al `architect` que lo añada al plan.
+- Si al implementar descubres un resultado nuevo, avisa al usuario en lugar de cubrirlo sobre la marcha y, si lo acepta, pide al `architect` que lo añada al plan (en el modo ligero, actualiza tú `<handoff>/plan.md`).
 
 ## 4. Verificar
 - Delega en `outcome-verifier` con la referencia al plan; deja la verificación en `verification/<slug>` (o en `<handoff>/outcome-verifier.md`).

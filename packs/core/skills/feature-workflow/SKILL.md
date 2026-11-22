@@ -21,9 +21,12 @@ Responde sí o no a cada uno; si alguno es "no", usa el flujo completo.
 2. **Rama**: como en el paso 2 del flujo completo.
 3. **Implementación y tests**: delega en el especialista con el `<slug>`, `<handoff>/plan.md` y los IDs, o implementa tú si no hay especialista. El especialista escribe los tests de cada resultado.
 4. **Pasada combinada**: delega en `outcome-verifier` pidiendo una pasada combinada; verifica cada resultado y revisa el diff en una sola ejecución.
-   - `NO CUMPLIDO` o hallazgos CRÍTICOS/IMPORTANTES: retoma al mismo especialista con `SendMessage` y la ruta `<handoff>/outcome-verifier.md`; si ya no está disponible, lanza uno nuevo con las rutas de handoff. Después repite la pasada combinada.
+   - `NO CUMPLIDO` o hallazgos CRÍTICOS/IMPORTANTES: retoma al mismo especialista con `SendMessage`, la referencia a la verificación (`verification/<slug>` o `<handoff>/outcome-verifier.md`) y la ruta de los hallazgos (`<handoff>/outcome-verifier.md`); si ya no está disponible, lanza uno nuevo con las rutas de handoff. Después repite la pasada combinada.
    - `SIN TEST`: retoma al mismo especialista con `SendMessage` para que añada el test (o lanza uno nuevo con las rutas de handoff si ya no está disponible) y repite la pasada combinada.
+   - Otro `NO VERIFICABLE`: acuerda con el usuario cómo verificarlo.
+   - Si implementaste tú, corrige o añade el test tú mismo en lugar de retomar a un especialista.
    - Comenta los hallazgos MENORES al usuario sin bloquear.
+   - No pases al paso 5 hasta que todos estén `CUMPLIDO` sin hallazgos CRÍTICOS ni IMPORTANTES, o el usuario acepte los pendientes.
 5. **Commit, PR y cierre**: como en los pasos 6 y 7 del flujo completo.
 
 ### Paso al flujo completo

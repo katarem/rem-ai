@@ -33,7 +33,7 @@ Eres <rol>. <Una frase sobre cómo trabajas y qué priorizas>.
   ```
 
 ## Detalle (fichero de handoff)
-Escribe en `<handoff>/my-agent.md`:
+Escribe en `<handoff>/my-agent.md` (agentes sin `Write`: con `Bash`, `mkdir -p` + `cat > … <<'EOF'`, y en ninguna otra ruta):
 - <Detalle completo: cambios, ficheros, tests → `O<n>`>.
 - <Verificación: comando, `exit`, resumen, errores extraídos y ruta `<handoff>/my-agent.log`; nunca la salida completa>.
 

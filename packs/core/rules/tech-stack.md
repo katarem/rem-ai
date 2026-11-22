@@ -18,4 +18,4 @@ Todo proyecto nuevo usa este stack y se crea con la skill `/new-project`. El det
 ## Salirse del stack
 - No introduzcas un lenguaje, framework, base de datos o librería que sustituya o solape con el stack aprobado sin un ADR aceptado por el usuario: usa `/tech-decision`.
 - Antes de añadir una dependencia, comprueba si el stack o el proyecto ya cubren esa necesidad.
-- En proyectos existentes con otro stack, respeta el suyo: no migres sin que te lo pidan.
+- En proyectos existentes con otro stack, respeta el suyo: no migres sin que te lo pidan; propónlo como tarea aparte con su ADR.

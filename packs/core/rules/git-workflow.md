@@ -12,11 +12,11 @@
 - Nunca hagas commit de secretos, `.env`, ficheros generados ni artefactos de build.
 
 ## Pull requests (GitHub)
-- Todo repositorio en GitHub tiene CI (`ci.yml`) y release (`release.yml`) según la regla `ci-cd`; si faltan, propón `/github-ci-setup`. Una PR con los checks en rojo no se integra.
+- Todo repositorio en GitHub tiene CI (`ci.yml`) y release (`release.yml`) según la regla `ci-cd`; si faltan, propón `/github-ci-setup`. Una PR con los checks en rojo no se integra. La versión sale del tag `vX.Y.Z`: no la edites a mano en los ficheros de build.
 - Todo cambio termina en una **PR** hacia la rama principal.
 - Antes de abrirla: build, tests y linter en verde, resultados verificados por `outcome-verifier`, revisión (`code-reviewer` o la pasada combinada del modo ligero) sin hallazgos críticos y rama actualizada con la principal.
 - Título como los commits. Descripción en inglés: qué cambia, por qué, sección "Outcomes" (resultados con su evidencia), cómo se ha probado y `Closes #123`. Usa la plantilla de PR si existe.
-- En *draft* si el trabajo no está terminado. No hagas merge salvo que te lo pidan.
+- En *draft* si el trabajo no está terminado. No hagas merge: la aprueba y la integra una persona, salvo que te pidan lo contrario.
 - Si el remoto no es GitHub, sube la rama e indica que la MR queda pendiente.
 
 ## Prohibido
