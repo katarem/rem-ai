@@ -20,7 +20,7 @@ Este repositorio es una biblioteca de agentes, reglas y skills para Claude Code.
 - **Reglas** (`rules/<tema>.md`):
   - Cortas, imperativas y verificables. Nada de explicaciones largas: si hace falta un procedimiento, es una skill.
   - Las reglas de tecnología **deben** llevar `paths` en el frontmatter para no cargar contexto innecesario.
-  - Las reglas sin `paths` (siempre activas) solo se permiten en `core`.
+  - Las reglas sin `paths` (siempre activas) solo se permiten en `core`. Las de `core` también llevan `paths` si solo aplican a ciertos ficheros (p. ej. `ci-cd`): cada palabra siempre activa se carga en el agente principal y en cada subagente.
 - **Skills** (`skills/<name>/SKILL.md`):
   - `name` igual al nombre de la carpeta.
   - `description` dice qué hace y cuándo activarla.

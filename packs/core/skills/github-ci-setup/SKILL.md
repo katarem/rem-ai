@@ -8,6 +8,7 @@ description: Configura CI/CD con GitHub Actions en un repositorio de GitHub seg�
 Resultado: `ci.yml` (en cada PR), `release.yml` (al hacer merge), la configuración de versionado y changelog, y la protección de la rama principal. Las plantillas están en `templates/` dentro de esta skill.
 
 ## 1. Analiza el repositorio
+- Lee la regla `ci-cd` (`.claude/rules/core/ci-cd.md` o `~/.claude/rules/core/ci-cd.md`) y aplícala en todos los pasos: solo se carga sola al tocar `.github/`.
 - Confirma que el remoto es GitHub y cuál es la rama principal (`git remote -v`, `git symbolic-ref refs/remotes/origin/HEAD`).
 - Detecta el stack con la tabla del paso 3 y la versión de lenguaje/herramientas (`.java-version`, toolchain, `.nvmrc`, `engines`).
 - Revisa los workflows existentes en `.github/workflows/`: amplíalos en lugar de duplicarlos.

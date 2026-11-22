@@ -8,7 +8,7 @@ description: Crea un proyecto nuevo (backend, aplicación web, web de contenido 
 Resultado: un repositorio con el stack aprobado (regla `tech-stack` y regla `stack` del pack de la tecnología) que compila, pasa lint y tests, arranca en local y tiene CI/CD, sin ninguna funcionalidad de producto todavía.
 
 ## 1. Define el proyecto
-- Pregunta al usuario lo que no esté claro: nombre (en inglés y kebab-case), propósito en una frase, tipo de componente (backend, aplicación web, web de contenido, app móvil) y, si hay varios, cuáles. Cada componente desplegable es un repositorio propio.
+- Pregunta al usuario lo que no esté claro: nombre (en inglés y kebab-case), propósito en una frase, tipo de componente (backend, aplicación web, web de contenido, app móvil) y, si hay varios, cuáles. Cada componente desplegable es un repositorio propio, con su CI/CD y su versión.
 - Si algún requisito no encaja en el stack aprobado, resuélvelo antes con `/tech-decision`.
 - Acuerda los resultados (`/odd-cycle`). Como mínimo:
   - `O1` El build con lint y tests pasa en local con un solo comando.
@@ -17,7 +17,7 @@ Resultado: un repositorio con el stack aprobado (regla `tech-stack` y regla `sta
 
 ## 2. Resuelve las versiones
 - Consulta en las fuentes oficiales la última versión estable (o LTS) de cada pieza: Java, Spring Boot, Gradle, Kotlin, Compose Multiplatform, Android Gradle Plugin, Node.js, pnpm, React, Vite, Astro, PostgreSQL.
-- Comprueba que son compatibles entre sí (Kotlin ↔ Compose Multiplatform ↔ AGP, Spring Boot ↔ Java) y fíjalas en el proyecto. Nunca dejes rangos ni `latest`.
+- Comprueba que son compatibles entre sí (Kotlin ↔ Compose Multiplatform ↔ AGP, Spring Boot ↔ Java) y fíjalas en el proyecto (wrapper, toolchain, `.nvmrc`, version catalog, lockfile). Nunca dejes rangos ni `latest`.
 
 ## 3. Genera el esqueleto
 - Si el repositorio es nuevo, inicialízalo con un commit vacío en `main` (`git commit --allow-empty -m "chore: initial commit"`) y haz el resto en una rama `chore/bootstrap-<nombre>` (regla `git-workflow`).

@@ -1,3 +1,10 @@
+---
+paths:
+  - ".github/**"
+  - "**/.releaserc*"
+  - "**/CHANGELOG.md"
+---
+
 # CI/CD en GitHub
 
 Todo repositorio alojado en GitHub tiene integración y entrega continuas con GitHub Actions. Si no las tiene o están incompletas, propón configurarlas con la skill `/github-ci-setup`.
