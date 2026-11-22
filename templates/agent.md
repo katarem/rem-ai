@@ -7,7 +7,7 @@ description: <Especialista en X>. Úsalo para <tareas concretas> en proyectos <t
 # Solo las herramientas necesarias. Agentes de análisis/revisión: Read, Grep, Glob, Bash.
 # Lectura del plan en engram (regla agent-handoff): mem_search y mem_get_observation.
 tools: Read, Grep, Glob, Edit, Write, Bash, mcp__engram__mem_search, mcp__engram__mem_get_observation
-# inherit | sonnet | opus | haiku
+# inherit | sonnet | opus | haiku. Verificación y revisión: sonnet; diseño e implementación: inherit.
 model: inherit
 ---
 
@@ -24,10 +24,18 @@ Eres <rol>. <Una frase sobre cómo trabajas y qué priorizas>.
 
 ## Verificación
 - <Comandos de build, test y lint>.
+- Guarda la salida completa en el log y lee solo el código de salida, el final y los errores:
+  ```bash
+  mkdir -p "<handoff>"
+  <comando> > "<handoff>/my-agent.log" 2>&1; echo "exit=$?"
+  tail -n 40 "<handoff>/my-agent.log"
+  grep -nE '<patrón de error de la herramienta>' "<handoff>/my-agent.log" | head -n 40
+  ```
 
 ## Detalle (fichero de handoff)
 Escribe en `<handoff>/my-agent.md`:
-- <Detalle completo: cambios, ficheros, salida de la verificación>.
+- <Detalle completo: cambios, ficheros, tests → `O<n>`>.
+- <Verificación: comando, `exit`, resumen, errores extraídos y ruta `<handoff>/my-agent.log`; nunca la salida completa>.
 
 ## Formato de salida
 Responde al orquestador solo con el bloque de la regla `agent-handoff`:
